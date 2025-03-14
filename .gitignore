@@ -75,3 +75,6 @@ DerivedDataCache/*
 EditorTools/Intermediate
 EditorTools/Saved
 EditorTools/Binaries
+EditorTools/.idea
+EditorTools/Plugins/ExtendEditor/Intermediate
+EditorTools/Plugins/ExtendEditor/Binaries
