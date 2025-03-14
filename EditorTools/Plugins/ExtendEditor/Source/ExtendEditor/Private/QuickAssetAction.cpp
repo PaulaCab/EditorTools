@@ -30,3 +30,31 @@ void UQuickAssetAction::DuplicateAssets(int32 Num)
 		}
 	}
 }
+
+void UQuickAssetAction::AddPrefixes()
+{
+	TArray<UObject*> selectedObjects = UEditorUtilityLibrary::GetSelectedAssets();
+	for(UObject* object : selectedObjects)
+	{
+		if(!object)
+			continue;
+
+		FString* prefix = PrefixMap.Find(object->GetClass());
+		if(!prefix|| prefix->IsEmpty())
+		{
+			Print(TEXT("Failed to find prefix for class " + object->GetClass()->GetName()), FColor::Red);
+			continue;
+		}
+
+		FString oldName = object->GetName();
+		if(oldName.StartsWith(*prefix))
+		{
+			Print(oldName+ TEXT(" already has prefix"), FColor::Red);
+			continue;
+		}
+
+		const FString newName = *prefix + oldName;
+
+		UEditorUtilityLibrary::RenameAsset(object, newName);
+	}
+}
