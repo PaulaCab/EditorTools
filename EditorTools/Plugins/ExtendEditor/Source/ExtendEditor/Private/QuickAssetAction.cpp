@@ -5,8 +5,33 @@
 #include "DebugHelper.h"
 #include "EditorAssetLibrary.h"
 #include "EditorUtilityLibrary.h"
+#include "ObjectTools.h"
 
 
+void UQuickAssetAction::RemoveUnusedAssets()
+{
+	TArray<FAssetData> selectedAD = UEditorUtilityLibrary::GetSelectedAssetData();
+	TArray<FAssetData> unusedAD;
+
+	for(const FAssetData& data : selectedAD)
+	{
+		TArray<FString> assetsReferences = UEditorAssetLibrary::FindPackageReferencersForAsset(data.GetSoftObjectPath().ToString());
+
+		if(!assetsReferences.Num())
+			unusedAD.Add(data);
+	}
+
+	if(!unusedAD.Num())
+	{
+		ShowMsg(EAppMsgType::Type::Ok, TEXT("No unused asset found"));
+		return;
+	}
+
+	const int32 deletedNum = ObjectTools::DeleteAssets(unusedAD);
+
+	if(deletedNum>0)
+		ShowNotify(TEXT("Deleted ") + FString::FromInt(deletedNum)+ TEXT(" unused assets"));
+}
 
 void UQuickAssetAction::DuplicateAssets(int32 Num)
 {

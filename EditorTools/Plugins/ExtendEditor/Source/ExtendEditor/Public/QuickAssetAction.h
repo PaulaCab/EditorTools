@@ -27,6 +27,7 @@ class EXTENDEDITOR_API UQuickAssetAction : public UAssetActionUtility
 	GENERATED_BODY()
 	
 public:
+	UFUNCTION(CallInEditor) void RemoveUnusedAssets();
 	UFUNCTION(CallInEditor)	void DuplicateAssets(int32 Num);
 	UFUNCTION(CallInEditor) void AddPrefixes();
 
