@@ -2,17 +2,169 @@
 
 #include "ExtendEditor.h"
 
+#include "ContentBrowserModule.h"
+#include "DebugHelper.h"
+#include "EditorAssetLibrary.h"
+#include "ObjectTools.h"
+
 #define LOCTEXT_NAMESPACE "FExtendEditorModule"
 
 void FExtendEditorModule::StartupModule()
 {
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	InitCBMenuExtension();
 }
 
 void FExtendEditorModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
+}
+
+void FExtendEditorModule::InitCBMenuExtension()
+{
+	auto& cbModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	auto& pathsArray = cbModule.GetAllPathViewContextMenuExtenders();
+
+	//Delegate with return value "TSharedRef<FExtender>" and one param "const TArray<FString>&"
+	// FContentBrowserMenuExtender_SelectedPaths customCBMenuDelegate;
+	// customCBMenuDelegate.BindRaw(this, &FExtendEditorModule::CustomCBExtender);
+	// pathsArray.Add(customCBMenuDelegate);
+
+	pathsArray.Add(FContentBrowserMenuExtender_SelectedPaths::
+		CreateRaw(this, &FExtendEditorModule::CustomCBExtender));
+}
+
+//Define position for inserting menu entry
+TSharedRef<FExtender> FExtendEditorModule::CustomCBExtender(const TArray<FString>& SelectedPaths)
+{
+	TSharedRef<FExtender> menuExtender(new FExtender());
+
+	if(SelectedPaths.Num())
+	{
+		//If the extension hook doesn't exist there wont be an error, it just wont display
+		menuExtender->AddMenuExtension(
+			FName("Delete"),
+			EExtensionHook::After,
+			TSharedPtr<FUICommandList>(),
+			FMenuExtensionDelegate::CreateRaw(this, &FExtendEditorModule::AddCBMenuEntry));
+
+		SelectedFolderPaths = SelectedPaths;
+	}
+	
+	return menuExtender;
+}
+
+void FExtendEditorModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry(
+		FText::FromString(TEXT("Delete Unused Assets")),
+		FText::FromString(TEXT("Safely delete unused assets under folder")),
+		FSlateIcon(),
+		FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnDeleteUnusedAssetsClicked)
+		);
+
+	MenuBuilder.AddMenuEntry(
+	FText::FromString(TEXT("Delete Empty Folders")),
+	FText::FromString(TEXT("Safely delete all empty folders")),
+	FSlateIcon(),
+	FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnDeleteEmptyFoldersClicked)
+	);
+}
+
+void FExtendEditorModule::OnDeleteUnusedAssetsClicked()
+{
+	if(SelectedFolderPaths.Num()>1)
+	{
+		ShowMsg(EAppMsgType::Ok, TEXT("You can only do this to one folder"));
+		return;
+	}
+
+	auto pathsNames = UEditorAssetLibrary::ListAssets(SelectedFolderPaths[0]);
+	if(!pathsNames.Num())
+	{
+		ShowMsg(EAppMsgType::Ok, TEXT("No assets found under selected folder"));
+		return;
+	}
+
+	auto result = ShowMsg(EAppMsgType::YesNo, TEXT("A total of ") + FString::FromInt(pathsNames.Num()) + TEXT(" assets found. \nWould you like to procced?"));
+	if(result == EAppReturnType::No)
+		return;
+
+	TArray<FAssetData> unusedAD;
+	for(const FString& path : pathsNames)
+	{
+		if(path.Contains(TEXT("Developers"))|| path.Contains(TEXT("Collections"))|| path.Contains(TEXT("_External")))
+			continue;
+
+		if(!UEditorAssetLibrary::DoesAssetExist(path))
+			continue;
+
+		auto assetReferences = UEditorAssetLibrary::FindPackageReferencersForAsset(path);
+		if(!assetReferences.Num())
+		{
+			auto data = UEditorAssetLibrary::FindAssetData(path);
+			unusedAD.Add(data);
+		}
+	}
+
+	if(unusedAD.Num())
+	{
+		ObjectTools::DeleteAssets(unusedAD);
+	}
+	else
+	{
+		ShowMsg(EAppMsgType::Ok, TEXT("No unused assets found under selected folder"));
+	}
+}
+
+void FExtendEditorModule::OnDeleteEmptyFoldersClicked()
+{
+	TArray<FString> folderPaths = UEditorAssetLibrary::ListAssets(SelectedFolderPaths[0], true,true);
+	uint32 counter = 0;
+
+	FString emptyFolderPathsNames;
+	TArray<FString> emptyFolderPaths;
+
+	for(const FString& path : folderPaths)
+	{
+		if(path.Contains(TEXT("Developers"))|| path.Contains(TEXT("Collections"))|| path.Contains(TEXT("_External")))
+			continue;
+		
+		if(!UEditorAssetLibrary::DoesDirectoryExist(path))
+			continue;
+
+		if(!UEditorAssetLibrary::DoesDirectoryHaveAssets(path))
+		{
+			emptyFolderPathsNames.Append(path);
+			emptyFolderPathsNames.Append(TEXT("\n"));
+			
+			emptyFolderPaths.Add(path);
+		}
+	}
+
+	if(!emptyFolderPaths.Num())
+	{
+		ShowMsg(EAppMsgType::Ok, TEXT("No empty folder found under selected folder"), false);
+		return;
+	}
+	
+	EAppReturnType::Type result = ShowMsg(EAppMsgType::OkCancel, TEXT("Empty folders found: \n")
+		+ emptyFolderPathsNames + TEXT("\nWould you want to delete all?"), false);
+
+	if(result == EAppReturnType::Cancel)
+		return;
+
+	for(const FString& path : emptyFolderPaths)
+	{
+		if(UEditorAssetLibrary::DeleteDirectory(path))
+			++counter;
+		else
+			Print(TEXT("Failed to delete " +  path) , FColor::Red);
+	}
+
+	if(counter)
+		ShowNotify(TEXT("Successfully deleted ") + FString::FromInt(counter) + " folders");
+
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -4,18 +4,18 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 
-void Print(const FString& Message, const FColor& Color)
+static void Print(const FString& Message, const FColor& Color)
 {
     if(GEngine)
         GEngine->AddOnScreenDebugMessage(-1,8.f, Color, Message);
 }
 
-void PrintLog(const FString& Message)
+static void PrintLog(const FString& Message)
 {
     UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
 }
 
-EAppReturnType::Type ShowMsg(EAppMsgType::Type MsgType, const FString& Msg, bool bShowMsgAsWarning = true)
+static EAppReturnType::Type ShowMsg(EAppMsgType::Type MsgType, const FString& Msg, bool bShowMsgAsWarning = true)
 {
     if(bShowMsgAsWarning)
     {
@@ -26,7 +26,7 @@ EAppReturnType::Type ShowMsg(EAppMsgType::Type MsgType, const FString& Msg, bool
     return FMessageDialog::Open(MsgType, FText::FromString(Msg));
 }
 
-void ShowNotify(const FString& Msg)
+static void ShowNotify(const FString& Msg)
 {
     FNotificationInfo NotifyInfo(FText::FromString(Msg));
     NotifyInfo.bUseLargeFont = true;
