@@ -6,12 +6,14 @@
 #include "DebugHelper.h"
 #include "EditorAssetLibrary.h"
 #include "ObjectTools.h"
+#include "SlateWidgets/AdvanceDeletionWidget.h"
 
 #define LOCTEXT_NAMESPACE "FExtendEditorModule"
 
 void FExtendEditorModule::StartupModule()
 {
 	InitCBMenuExtension();
+	RegisterAdvanceDeletionTab();
 }
 
 void FExtendEditorModule::ShutdownModule()
@@ -69,6 +71,13 @@ void FExtendEditorModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
 	FSlateIcon(),
 	FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnDeleteEmptyFoldersClicked)
 	);
+
+	MenuBuilder.AddMenuEntry(
+	FText::FromString(TEXT("Advanced Deletion")),
+	FText::FromString(TEXT("Lists assets by specific conditions in a tab for deleting")),
+	FSlateIcon(),
+	FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnAdvanceDeletionClicked)
+);
 }
 
 void FExtendEditorModule::OnDeleteUnusedAssetsClicked()
@@ -165,6 +174,58 @@ void FExtendEditorModule::OnDeleteEmptyFoldersClicked()
 	if(counter)
 		ShowNotify(TEXT("Successfully deleted ") + FString::FromInt(counter) + " folders");
 
+}
+
+void FExtendEditorModule::OnAdvanceDeletionClicked()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
+}
+
+void FExtendEditorModule::RegisterAdvanceDeletionTab()
+{
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FName("AdvanceDeletion"),
+		FOnSpawnTab::CreateRaw(this, &FExtendEditorModule::OnSpawnAdvanceDeletionTab))
+		.SetDisplayName(FText::FromString(TEXT("Advance Deletion")));
+}
+
+TSharedRef<SDockTab> FExtendEditorModule::OnSpawnAdvanceDeletionTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	//Macro used to create slate widgets
+	return SNew(SDockTab).TabRole(NomadTab)
+	[
+		SNew(SAdvanceDeletionTab)
+		.AssetDataToStore(GetAllADUnderSelectedFolder())
+	];
+}
+
+TArray<TSharedPtr<FAssetData>> FExtendEditorModule::GetAllADUnderSelectedFolder()
+{
+	TArray<TSharedPtr<FAssetData>> availableAD;
+	if(!SelectedFolderPaths.Num())
+		return availableAD;
+	
+	auto pathsNames = UEditorAssetLibrary::ListAssets(SelectedFolderPaths[0]);
+	
+	for(const FString& path : pathsNames)
+	{
+		if(path.Contains(TEXT("Developers"))|| path.Contains(TEXT("Collections"))|| path.Contains(TEXT("_External")))
+			continue;
+
+		if(!UEditorAssetLibrary::DoesAssetExist(path))
+			continue;
+
+		auto data = UEditorAssetLibrary::FindAssetData(path);
+		availableAD.Add(MakeShared<FAssetData>(data));
+	}
+	
+	return availableAD;
+}
+
+bool FExtendEditorModule::DeleteSingleAsset(const FAssetData& AssetDataToDelete)
+{
+	TArray<FAssetData> dataArray;
+	dataArray.Add(AssetDataToDelete);
+	return ObjectTools::DeleteAssets(dataArray) > 0;
 }
 
 #undef LOCTEXT_NAMESPACE

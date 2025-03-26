@@ -26,7 +26,7 @@ public class ExtendEditor : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "Blutility", "EditorScriptingUtilities", "UMG", "Niagara", "UnrealEd", "ContentBrowser"
+				"Core", "Blutility", "EditorScriptingUtilities", "UMG", "Niagara", "UnrealEd", "ContentBrowser", "InputCore"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
