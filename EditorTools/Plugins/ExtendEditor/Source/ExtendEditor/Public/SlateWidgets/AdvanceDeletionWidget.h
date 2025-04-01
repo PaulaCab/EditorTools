@@ -20,17 +20,28 @@ public:
 
 private:
 	TArray<TSharedPtr<FAssetData>> StoredAD;
+	TArray<TSharedPtr<FAssetData>> DisplayedAD;
+	TArray<TSharedPtr<FAssetData>> SelectedAD;
+	TArray<TSharedPtr<SCheckBox>> CheckBoxArray;
+	TArray<TSharedPtr<FString>> ComboBoxSourceItems;
+
+	TSharedPtr<STextBlock> ComboDisplayTextBlock;
 	
 	TSharedRef<SListView<TSharedPtr<FAssetData>>> ConstructAssetListView();
 	TSharedPtr<SListView<TSharedPtr<FAssetData>>> AssetListView;
 	void RefreshAssetListView();
 	
 	TSharedRef<ITableRow> OnGenerateRowForList(TSharedPtr<FAssetData> AssetDataToDisplay, const TSharedRef<STableViewBase>& OwnerTable);
-	TSharedRef<SCheckBox> ConstructCheckBox(const TSharedPtr<FAssetData>& AssetDataToDisplay);
+	TSharedRef<SWidget> OnGenerateComboContent(TSharedPtr<FString> SourceItem); 
+	
+	TSharedRef<SCheckBox> ConstructCheckBoxForRow(const TSharedPtr<FAssetData>& AssetDataToDisplay);
 	TSharedRef<SButton> ConstructButtonForRow(const TSharedPtr<FAssetData>& AssetDataToDisplay);
 	TSharedRef<STextBlock> ConstructTextForRow(const FString& Text, const FSlateFontInfo& FontInfo);
+	TSharedRef<SComboBox<TSharedPtr<FString>>> ConstructComboBox();
 	
 	void OnCheckBoxStateChanged(ECheckBoxState NewState, TSharedPtr<FAssetData> AssetData);
+	void OnComboSelectionChanged(TSharedPtr<FString> SelectedOption, ESelectInfo::Type InSelectInfo);
+	
 	FReply OnDeleteButtonClicked(TSharedPtr<FAssetData> AssetData);
 	FReply OnDeleteAllButtonClicked();
 	FReply OnSelectAllButtonClicked();

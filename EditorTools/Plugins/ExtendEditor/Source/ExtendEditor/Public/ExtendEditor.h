@@ -34,6 +34,10 @@ private:
 
 public:
 	bool DeleteSingleAsset(const FAssetData& AssetDataToDelete);
+	bool DeleteMultipleAssets(const TArray<FAssetData>& AssetDataToDelete);
+
+	void ListUnusedAssets(const TArray<TSharedPtr<FAssetData>>& AssetDataToFilter, TArray<TSharedPtr<FAssetData>>& UnusedAD);
+	void ListSameNameAssets(const TArray<TSharedPtr<FAssetData>>& AssetDataToFilter, TArray<TSharedPtr<FAssetData>>& SameNameAD);
 
 	
 };

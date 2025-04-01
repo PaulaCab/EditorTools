@@ -3,14 +3,28 @@
 
 #include "SlateWidgets/AdvanceDeletionWidget.h"
 
+#include "DebugHelper.h"
 #include "ExtendEditor.h"
+#include "ObjectTools.h"
+
+#define LIST_ALL TEXT("List all available assets")
+#define LIST_UNUSED TEXT("List unused assets")
+#define LIST_SAME_NAME TEXT("List assets with same name")
 
 void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 {
 	bCanSupportFocus = true;
 
 	StoredAD = InArgs._AssetDataToStore;
+	DisplayedAD = StoredAD;
+	ComboBoxSourceItems.Empty();
+	CheckBoxArray.Empty();
+	SelectedAD.Empty();
 
+	ComboBoxSourceItems.Add(MakeShared<FString>(LIST_ALL));
+	ComboBoxSourceItems.Add(MakeShared<FString>(LIST_UNUSED));
+	ComboBoxSourceItems.Add(MakeShared<FString>(LIST_SAME_NAME));
+	
 	FSlateFontInfo titleFont = GetEmbossedFont();
 	titleFont.Size = 20;
 	
@@ -34,6 +48,12 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				ConstructComboBox()
+			]
 		]
 
 		//asset list
@@ -91,7 +111,7 @@ TSharedRef<SListView<TSharedPtr<FAssetData>>> SAdvanceDeletionTab::ConstructAsse
 {
 	AssetListView = SNew(SListView<TSharedPtr<FAssetData>>)
 				.ItemHeight(24.f)
-				.ListItemsSource(&StoredAD)
+				.ListItemsSource(&DisplayedAD)
 				.OnGenerateRow(this, &SAdvanceDeletionTab::OnGenerateRowForList);
 
 	return AssetListView.ToSharedRef();
@@ -99,6 +119,9 @@ TSharedRef<SListView<TSharedPtr<FAssetData>>> SAdvanceDeletionTab::ConstructAsse
 
 void SAdvanceDeletionTab::RefreshAssetListView()
 {
+	SelectedAD.Empty();
+	CheckBoxArray.Empty();
+	
 	if(AssetListView.IsValid())
 		AssetListView->RebuildList();
 }
@@ -126,7 +149,7 @@ TSharedRef<ITableRow> SAdvanceDeletionTab::OnGenerateRowForList(TSharedPtr<FAsse
 		.VAlign(VAlign_Center)
 		.FillWidth(.05f)
 		[
-			ConstructCheckBox(AssetDataToDisplay)
+			ConstructCheckBoxForRow(AssetDataToDisplay)
 		]
 
 		//asset class name
@@ -156,14 +179,32 @@ TSharedRef<ITableRow> SAdvanceDeletionTab::OnGenerateRowForList(TSharedPtr<FAsse
 	return listViewRow;
 }
 
-TSharedRef<SCheckBox> SAdvanceDeletionTab::ConstructCheckBox(const TSharedPtr<FAssetData>& AssetDataToDisplay)
+//ROW ELEMENTS
+TSharedRef<SCheckBox> SAdvanceDeletionTab::ConstructCheckBoxForRow(const TSharedPtr<FAssetData>& AssetDataToDisplay)
 {
 	TSharedRef<SCheckBox> checkBox = SNew(SCheckBox)
 	.Type(ESlateCheckBoxType::CheckBox)
 	.OnCheckStateChanged(this, &SAdvanceDeletionTab::OnCheckBoxStateChanged, AssetDataToDisplay)
 	.Visibility(EVisibility::Visible);
 
+	CheckBoxArray.Add(checkBox);
+	
 	return checkBox;
+}
+
+void SAdvanceDeletionTab::OnCheckBoxStateChanged(ECheckBoxState NewState, TSharedPtr<FAssetData> AssetData)
+{
+	switch (NewState) {
+	case ECheckBoxState::Unchecked:
+		if(SelectedAD.Contains(AssetData))
+			SelectedAD.Remove(AssetData);
+		break;
+	case ECheckBoxState::Checked:
+		SelectedAD.AddUnique(AssetData);
+		break;
+	case ECheckBoxState::Undetermined:
+		break;
+	}
 }
 
 TSharedRef<SButton> SAdvanceDeletionTab::ConstructButtonForRow(const TSharedPtr<FAssetData>& AssetDataToDisplay)
@@ -185,18 +226,51 @@ TSharedRef<STextBlock> SAdvanceDeletionTab::ConstructTextForRow(const FString& T
 	return textBlock;
 }
 
-void SAdvanceDeletionTab::OnCheckBoxStateChanged(ECheckBoxState NewState, TSharedPtr<FAssetData> AssetData)
+//COMBO BOX
+TSharedRef<SComboBox<TSharedPtr<FString>>> SAdvanceDeletionTab::ConstructComboBox()
 {
-	switch (NewState) {
-	case ECheckBoxState::Unchecked:
-		break;
-	case ECheckBoxState::Checked:
-		break;
-	case ECheckBoxState::Undetermined:
-		break;
+	TSharedRef<SComboBox<TSharedPtr<FString>>> comboBox = SNew(SComboBox<TSharedPtr<FString>>)
+	.OptionsSource(&ComboBoxSourceItems)
+	.OnGenerateWidget(this, &SAdvanceDeletionTab::OnGenerateComboContent)
+	.OnSelectionChanged(this, &SAdvanceDeletionTab::OnComboSelectionChanged)
+	[
+		SAssignNew(ComboDisplayTextBlock, STextBlock)
+		.Text(FText::FromString(TEXT("List Assets Option")))
+	];
+
+	return comboBox;
+}
+
+TSharedRef<SWidget> SAdvanceDeletionTab::OnGenerateComboContent(TSharedPtr<FString> SourceItem)
+{
+	TSharedRef<STextBlock> textBlock = SNew(STextBlock)
+	.Text(FText::FromString(*SourceItem.Get()));
+
+	return textBlock;
+}
+
+void SAdvanceDeletionTab::OnComboSelectionChanged(TSharedPtr<FString> SelectedOption, ESelectInfo::Type InSelectInfo)
+{
+	ComboDisplayTextBlock->SetText(FText::FromString(*SelectedOption.Get()));
+	auto editorModule = FModuleManager::GetModuleChecked<FExtendEditorModule>(TEXT("ExtendEditor"));
+	
+	if(*SelectedOption.Get() == LIST_ALL)
+	{
+		DisplayedAD = StoredAD;
+	}
+	else if(*SelectedOption.Get() == LIST_UNUSED)
+	{
+		editorModule.ListUnusedAssets(StoredAD, DisplayedAD);
+		RefreshAssetListView();
+	}
+	else if(*SelectedOption.Get() == LIST_SAME_NAME)
+	{
+		editorModule.ListSameNameAssets(StoredAD, DisplayedAD);
+		RefreshAssetListView();
 	}
 }
 
+//BUTTONS FUNCTIONS
 FReply SAdvanceDeletionTab::OnDeleteButtonClicked(TSharedPtr<FAssetData> AssetData)
 {
 	auto editorModule = FModuleManager::GetModuleChecked<FExtendEditorModule>(TEXT("ExtendEditor"));
@@ -205,6 +279,9 @@ FReply SAdvanceDeletionTab::OnDeleteButtonClicked(TSharedPtr<FAssetData> AssetDa
 	{
 		if(StoredAD.Contains(AssetData))
 			StoredAD.Remove(AssetData);
+
+		if(DisplayedAD.Contains(AssetData))
+			DisplayedAD.Remove(AssetData);
 	}
 	
 	return FReply::Handled();
@@ -212,15 +289,58 @@ FReply SAdvanceDeletionTab::OnDeleteButtonClicked(TSharedPtr<FAssetData> AssetDa
 
 FReply SAdvanceDeletionTab::OnDeleteAllButtonClicked()
 {
+	if(!SelectedAD.Num())
+	{
+		ShowMsg(EAppMsgType::Ok, TEXT("No assets currently selected"));
+		return FReply::Handled();
+	}
+
+	TArray<FAssetData> toDeleteAD;
+	for(auto& data : SelectedAD)
+	{
+		toDeleteAD.Add(*data.Get());
+	}
+
+	auto editorModule = FModuleManager::GetModuleChecked<FExtendEditorModule>(TEXT("ExtendEditor"));
+	//deletes data, if succeed refresh list
+	if(editorModule.DeleteMultipleAssets(toDeleteAD))
+	{
+		for(auto& data : SelectedAD)
+		{
+			if(StoredAD.Contains(data))
+			StoredAD.Remove(data);
+		}
+		RefreshAssetListView();
+	}
+	
 	return FReply::Handled();
 }
 
 FReply SAdvanceDeletionTab::OnSelectAllButtonClicked()
 {
+	if(!CheckBoxArray.Num())
+		return FReply::Handled();
+
+	for(const auto& checkBox : CheckBoxArray)
+	{
+		if(!checkBox->IsChecked())
+			checkBox->ToggleCheckedState();
+	}
+	
 	return FReply::Handled();
 }
 
 FReply SAdvanceDeletionTab::OnDeselectAllButtonClicked()
 {
+	if(!CheckBoxArray.Num())
+		return FReply::Handled();
+
+	for(const auto& checkBox : CheckBoxArray)
+	{
+		if(checkBox->IsChecked())
+			checkBox->ToggleCheckedState();
+	}
+	
 	return FReply::Handled();
 }
+

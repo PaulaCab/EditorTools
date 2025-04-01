@@ -136,7 +136,7 @@ void FExtendEditorModule::OnDeleteEmptyFoldersClicked()
 
 	for(const FString& path : folderPaths)
 	{
-		if(path.Contains(TEXT("Developers"))|| path.Contains(TEXT("Collections"))|| path.Contains(TEXT("_External")))
+		if(path.Contains(TEXT("Developers"))|| path.Contains(TEXT("Collections"))|| path.Contains(TEXT("__ExternalActors")))
 			continue;
 		
 		if(!UEditorAssetLibrary::DoesDirectoryExist(path))
@@ -208,7 +208,7 @@ TArray<TSharedPtr<FAssetData>> FExtendEditorModule::GetAllADUnderSelectedFolder(
 	
 	for(const FString& path : pathsNames)
 	{
-		if(path.Contains(TEXT("Developers"))|| path.Contains(TEXT("Collections"))|| path.Contains(TEXT("_External")))
+		if(path.Contains(TEXT("Developers"))|| path.Contains(TEXT("Collections"))|| path.Contains(TEXT("__ExternalActors")))
 			continue;
 
 		if(!UEditorAssetLibrary::DoesAssetExist(path))
@@ -226,6 +226,48 @@ bool FExtendEditorModule::DeleteSingleAsset(const FAssetData& AssetDataToDelete)
 	TArray<FAssetData> dataArray;
 	dataArray.Add(AssetDataToDelete);
 	return ObjectTools::DeleteAssets(dataArray) > 0;
+}
+
+bool FExtendEditorModule::DeleteMultipleAssets(const TArray<FAssetData>& AssetDataToDelete)
+{
+	return ObjectTools::DeleteAssets(AssetDataToDelete)>0;
+}
+
+void FExtendEditorModule::ListUnusedAssets(const TArray<TSharedPtr<FAssetData>>& AssetDataToFilter,
+	TArray<TSharedPtr<FAssetData>>& UnusedAD)
+{
+	UnusedAD.Empty();
+	
+	for(const auto& data: AssetDataToFilter)
+	{
+		auto assetReferences = UEditorAssetLibrary::FindPackageReferencersForAsset(data->ObjectPath.ToString());
+
+		if(assetReferences.Num() == 0)
+		{
+			UnusedAD.Add(data);
+		}
+	}
+}
+
+void FExtendEditorModule::ListSameNameAssets(const TArray<TSharedPtr<FAssetData>>& AssetDataToFilter,
+	TArray<TSharedPtr<FAssetData>>& SameNameAD)
+{
+	SameNameAD.Empty();
+	TMultiMap<FString, TSharedPtr<FAssetData>> assetsInfoMap;
+
+	for(const TSharedPtr<FAssetData>& data : AssetDataToFilter)
+	{
+		assetsInfoMap.Emplace(data->AssetName.ToString(), data);
+	}
+
+	for(const TSharedPtr<FAssetData>& data : AssetDataToFilter)
+	{
+		TArray<TSharedPtr<FAssetData>> outDA;
+		assetsInfoMap.MultiFind(data->AssetName.ToString(), outDA);
+
+		if(outDA.Num()>1)
+			SameNameAD.Add(data);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
