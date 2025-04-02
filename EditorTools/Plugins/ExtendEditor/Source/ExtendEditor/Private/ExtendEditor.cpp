@@ -6,12 +6,14 @@
 #include "DebugHelper.h"
 #include "EditorAssetLibrary.h"
 #include "ObjectTools.h"
+#include "../CustomStyle/ExtendEditorStyle.h"
 #include "SlateWidgets/AdvanceDeletionWidget.h"
 
 #define LOCTEXT_NAMESPACE "FExtendEditorModule"
 
 void FExtendEditorModule::StartupModule()
 {
+	FExtendEditorStyle::InitializeIcons();
 	InitCBMenuExtension();
 	RegisterAdvanceDeletionTab();
 }
@@ -19,6 +21,7 @@ void FExtendEditorModule::StartupModule()
 void FExtendEditorModule::ShutdownModule()
 {
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
+	FExtendEditorStyle::ShutDown();
 }
 
 void FExtendEditorModule::InitCBMenuExtension()
@@ -60,21 +63,21 @@ void FExtendEditorModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(
 		FText::FromString(TEXT("Delete Unused Assets")),
 		FText::FromString(TEXT("Safely delete unused assets under folder")),
-		FSlateIcon(),
+		FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "ContentBrowser.DeleteAssets"),
 		FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnDeleteUnusedAssetsClicked)
 		);
 
 	MenuBuilder.AddMenuEntry(
 	FText::FromString(TEXT("Delete Empty Folders")),
 	FText::FromString(TEXT("Safely delete all empty folders")),
-	FSlateIcon(),
+	FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "ContentBrowser.DeleteAssets"),
 	FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnDeleteEmptyFoldersClicked)
 	);
 
 	MenuBuilder.AddMenuEntry(
 	FText::FromString(TEXT("Advanced Deletion")),
 	FText::FromString(TEXT("Lists assets by specific conditions in a tab for deleting")),
-	FSlateIcon(),
+	FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "ContentBrowser.DeleteAssets"),
 	FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnAdvanceDeletionClicked)
 );
 }
@@ -184,7 +187,8 @@ void FExtendEditorModule::RegisterAdvanceDeletionTab()
 {
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FName("AdvanceDeletion"),
 		FOnSpawnTab::CreateRaw(this, &FExtendEditorModule::OnSpawnAdvanceDeletionTab))
-		.SetDisplayName(FText::FromString(TEXT("Advance Deletion")));
+		.SetDisplayName(FText::FromString(TEXT("Advance Deletion")))
+		.SetIcon(FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "ContentBrowser.DeleteAssets"));
 }
 
 TSharedRef<SDockTab> FExtendEditorModule::OnSpawnAdvanceDeletionTab(const FSpawnTabArgs& SpawnTabArgs)
