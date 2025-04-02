@@ -39,5 +39,5 @@ public:
 	void ListUnusedAssets(const TArray<TSharedPtr<FAssetData>>& AssetDataToFilter, TArray<TSharedPtr<FAssetData>>& UnusedAD);
 	void ListSameNameAssets(const TArray<TSharedPtr<FAssetData>>& AssetDataToFilter, TArray<TSharedPtr<FAssetData>>& SameNameAD);
 
-	
+	void SyncCBToClickedAsset(const FString& AssetPath);	
 };

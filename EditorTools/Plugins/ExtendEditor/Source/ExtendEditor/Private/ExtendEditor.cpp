@@ -18,8 +18,7 @@ void FExtendEditorModule::StartupModule()
 
 void FExtendEditorModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
 }
 
 void FExtendEditorModule::InitCBMenuExtension()
@@ -190,11 +189,13 @@ void FExtendEditorModule::RegisterAdvanceDeletionTab()
 
 TSharedRef<SDockTab> FExtendEditorModule::OnSpawnAdvanceDeletionTab(const FSpawnTabArgs& SpawnTabArgs)
 {
+	FString path = SelectedFolderPaths.Num()==0 ? "" : SelectedFolderPaths[0];
 	//Macro used to create slate widgets
 	return SNew(SDockTab).TabRole(NomadTab)
 	[
 		SNew(SAdvanceDeletionTab)
 		.AssetDataToStore(GetAllADUnderSelectedFolder())
+		.SelectedFolder(path)
 	];
 }
 
@@ -240,7 +241,7 @@ void FExtendEditorModule::ListUnusedAssets(const TArray<TSharedPtr<FAssetData>>&
 	
 	for(const auto& data: AssetDataToFilter)
 	{
-		auto assetReferences = UEditorAssetLibrary::FindPackageReferencersForAsset(data->ObjectPath.ToString());
+		auto assetReferences = UEditorAssetLibrary::FindPackageReferencersForAsset(data->GetSoftObjectPath().ToString());
 
 		if(assetReferences.Num() == 0)
 		{
@@ -268,6 +269,13 @@ void FExtendEditorModule::ListSameNameAssets(const TArray<TSharedPtr<FAssetData>
 		if(outDA.Num()>1)
 			SameNameAD.Add(data);
 	}
+}
+
+void FExtendEditorModule::SyncCBToClickedAsset(const FString& AssetPath)
+{
+	TArray<FString> assetsPathToSync;
+	assetsPathToSync.Add(AssetPath);
+	UEditorAssetLibrary::SyncBrowserToObjects(assetsPathToSync);
 }
 
 #undef LOCTEXT_NAMESPACE

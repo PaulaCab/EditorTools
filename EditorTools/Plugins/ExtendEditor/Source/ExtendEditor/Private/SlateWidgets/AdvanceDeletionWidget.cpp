@@ -50,9 +50,27 @@ void SAdvanceDeletionTab::Construct(const FArguments& InArgs)
 			SNew(SHorizontalBox)
 
 			+SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(.2f)
 			[
 				ConstructComboBox()
+			]
+
+			+SHorizontalBox::Slot()
+			.FillWidth(.5f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Specify the listing condition in the drop.")))
+				.Justification(ETextJustify::Center)
+			]
+
+			+SHorizontalBox::Slot()
+			.FillWidth(.2f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Current folder:\n" + InArgs._SelectedFolder)))
+				.Justification(ETextJustify::Right)
+				.AutoWrapText(true)
 			]
 		]
 
@@ -112,7 +130,8 @@ TSharedRef<SListView<TSharedPtr<FAssetData>>> SAdvanceDeletionTab::ConstructAsse
 	AssetListView = SNew(SListView<TSharedPtr<FAssetData>>)
 				.ItemHeight(24.f)
 				.ListItemsSource(&DisplayedAD)
-				.OnGenerateRow(this, &SAdvanceDeletionTab::OnGenerateRowForList);
+				.OnGenerateRow(this, &SAdvanceDeletionTab::OnGenerateRowForList)
+				.OnMouseButtonClick(this, &SAdvanceDeletionTab::OnRowMouseButtonClicked);
 
 	return AssetListView.ToSharedRef();
 }
@@ -268,6 +287,13 @@ void SAdvanceDeletionTab::OnComboSelectionChanged(TSharedPtr<FString> SelectedOp
 		editorModule.ListSameNameAssets(StoredAD, DisplayedAD);
 		RefreshAssetListView();
 	}
+}
+
+void SAdvanceDeletionTab::OnRowMouseButtonClicked(TSharedPtr<FAssetData> AssetData)
+{
+	auto editorModule = FModuleManager::GetModuleChecked<FExtendEditorModule>(TEXT("ExtendEditor"));
+
+	editorModule.SyncCBToClickedAsset(AssetData->GetObjectPathString());
 }
 
 //BUTTONS FUNCTIONS
