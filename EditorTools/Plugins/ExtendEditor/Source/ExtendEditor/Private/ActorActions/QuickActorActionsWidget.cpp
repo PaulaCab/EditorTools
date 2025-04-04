@@ -116,3 +116,85 @@ void UQuickActorActionsWidget::DuplicateActors()
 	if(counter>0)
 		ShowNotify(TEXT("Successfully duplicated ") + FString::FromInt(counter) + TEXT(" actors"));
 }
+
+void UQuickActorActionsWidget::RandomizeActorTransform()
+{
+	const bool randomizePos = PosConfig.bRandomizeX || PosConfig.bRandomizeY || PosConfig.bRandomizeZ;
+	const bool randomizeRot = RotConfig.bRandomizeRotPitch || RotConfig.bRandomizeRotYaw || RotConfig.bRandomizeRotRoll;
+	
+	if(!GetEditorActorSubsystem() || (!randomizePos && !randomizeRot && !SizeConfig.bRandomizeSize))
+		return;
+
+	TArray<AActor*> selectedActors = EditorActorSubsystem->GetSelectedLevelActors();
+
+	if(!selectedActors.Num())
+	{
+		ShowNotify(TEXT("No actor selected"));
+		return;
+	}
+
+	for(AActor* actor : selectedActors)
+	{
+		if(!actor)
+			continue;
+
+		if(randomizePos)
+			RandomizeActorPosition(actor);
+	
+		if(randomizeRot)
+			RandomizeActorRotation(actor);
+
+		if(SizeConfig.bRandomizeSize)
+			RandomizeActorSize(actor);
+		
+	}
+}
+
+void UQuickActorActionsWidget::RandomizeActorPosition(AActor* SelectedActor)
+{
+	if(PosConfig.bRandomizeX)
+	{
+		const float xValue = FMath::RandRange(PosConfig.XMin, PosConfig.XMax);
+		SelectedActor->AddActorWorldOffset(FVector(xValue, 0.f, 0.f));
+	}
+
+	if(PosConfig.bRandomizeY)
+	{
+		const float yValue = FMath::RandRange(PosConfig.YMin, PosConfig.YMax);
+		SelectedActor->AddActorWorldOffset(FVector(0.f, yValue, 0.f));
+	}
+
+	if(PosConfig.bRandomizeZ)
+	{
+		const float zValue = FMath::RandRange(PosConfig.ZMin, PosConfig.ZMax);
+		SelectedActor->AddActorWorldOffset(FVector(0.f, 0.f, zValue));
+	}	
+}
+
+void UQuickActorActionsWidget::RandomizeActorRotation(AActor* SelectedActor)
+{
+	if(RotConfig.bRandomizeRotYaw)
+	{
+		const float yawValue = FMath::RandRange(RotConfig.RotYawMin, RotConfig.RotYawMax);
+		SelectedActor->AddActorWorldRotation(FRotator(0.f, yawValue, 0.f));
+	}
+
+	if(RotConfig.bRandomizeRotPitch)
+	{
+		const float pitchValue = FMath::RandRange(RotConfig.RotPitchMin, RotConfig.RotPitchMax);
+		SelectedActor->AddActorWorldRotation(FRotator(pitchValue, 0.f, 0.f));
+	}
+
+	if(RotConfig.bRandomizeRotRoll)
+	{
+		const float rollValue = FMath::RandRange(RotConfig.RotRollMin, RotConfig.RotRollMax);
+		SelectedActor->AddActorWorldRotation(FRotator(0.f, 0.f, rollValue));
+	}
+}
+
+void UQuickActorActionsWidget::RandomizeActorSize(AActor* SelectedActor)
+{
+	const FVector scale = FVector(FMath::RandRange(SizeConfig.SizeMin, SizeConfig.SizeMax));
+	SelectedActor->SetActorScale3D(scale);
+}
+
