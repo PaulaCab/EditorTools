@@ -17,6 +17,18 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ActorBatchSelection")
 	TEnumAsByte<ESearchCase::Type> SearchCase = ESearchCase::IgnoreCase;
+
+	//Actor duplication
+	UFUNCTION(BlueprintCallable) void DuplicateActors();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ActorBatchDuplication")
+	E_DuplicationAxis DuplicationAxis = E_DuplicationAxis::EDA_XAxis;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ActorBatchDuplication")
+	int32 NumberOfDuplicates = 5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ActorBatchDuplication")
+	float OffsetDist = 300.f;
 private:
 	UPROPERTY()
 	class UEditorActorSubsystem* EditorActorSubsystem = nullptr;
