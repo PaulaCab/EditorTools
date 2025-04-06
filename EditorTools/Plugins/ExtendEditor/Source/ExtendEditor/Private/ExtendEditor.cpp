@@ -5,9 +5,12 @@
 #include "ContentBrowserModule.h"
 #include "DebugHelper.h"
 #include "EditorAssetLibrary.h"
+#include "LevelEditor.h"
 #include "ObjectTools.h"
+#include "Selection.h"
 #include "../CustomStyle/ExtendEditorStyle.h"
 #include "SlateWidgets/AdvanceDeletionWidget.h"
+#include "Subsystems/EditorActorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FExtendEditorModule"
 
@@ -15,13 +18,24 @@ void FExtendEditorModule::StartupModule()
 {
 	FExtendEditorStyle::InitializeIcons();
 	InitCBMenuExtension();
+	InitLEMenuExtension();
 	RegisterAdvanceDeletionTab();
+	InitCustomSelectionEvent();
 }
 
 void FExtendEditorModule::ShutdownModule()
 {
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
 	FExtendEditorStyle::ShutDown();
+}
+
+bool FExtendEditorModule::GetEditorActorSubsystem()
+{
+	if(!WeakEditorActorSubsystem.IsValid())
+	{
+		WeakEditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+	}
+	return WeakEditorActorSubsystem.IsValid();
 }
 
 void FExtendEditorModule::InitCBMenuExtension()
@@ -35,11 +49,11 @@ void FExtendEditorModule::InitCBMenuExtension()
 	// pathsArray.Add(customCBMenuDelegate);
 
 	pathsArray.Add(FContentBrowserMenuExtender_SelectedPaths::
-		CreateRaw(this, &FExtendEditorModule::CustomCBExtender));
+		CreateRaw(this, &FExtendEditorModule::CustomCBMenuExtender));
 }
 
 //Define position for inserting menu entry
-TSharedRef<FExtender> FExtendEditorModule::CustomCBExtender(const TArray<FString>& SelectedPaths)
+TSharedRef<FExtender> FExtendEditorModule::CustomCBMenuExtender(const TArray<FString>& SelectedPaths)
 {
 	TSharedRef<FExtender> menuExtender(new FExtender());
 
@@ -178,6 +192,8 @@ void FExtendEditorModule::OnDeleteEmptyFoldersClicked()
 
 }
 
+#pragma region Deletion Tab
+
 void FExtendEditorModule::OnAdvanceDeletionClicked()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(FName("AdvanceDeletion"));
@@ -280,6 +296,144 @@ void FExtendEditorModule::SyncCBToClickedAsset(const FString& AssetPath)
 	TArray<FString> assetsPathToSync;
 	assetsPathToSync.Add(AssetPath);
 	UEditorAssetLibrary::SyncBrowserToObjects(assetsPathToSync);
+}
+
+#pragma endregion 
+
+void FExtendEditorModule::InitLEMenuExtension()
+{
+	auto& levelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+	auto& menuExtendersArray = levelEditorModule.GetAllLevelViewportContextMenuExtenders();
+
+	menuExtendersArray.Add(FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::
+		CreateRaw(this, &FExtendEditorModule::CustomLEMenuExtender ));
+}
+
+TSharedRef<FExtender> FExtendEditorModule::CustomLEMenuExtender(const TSharedRef<FUICommandList> UICommandList,
+	const TArray<AActor*> SelectedActors)
+{
+	TSharedRef<FExtender> menuExtender = MakeShareable(new FExtender);
+	
+	if(SelectedActors.Num()>0)
+	{
+		menuExtender->AddMenuExtension(
+			FName("ActorOptions"),
+			EExtensionHook::Before,
+			UICommandList,
+			FMenuExtensionDelegate::CreateRaw(this, &FExtendEditorModule::AddLEMenuEntry));
+	}
+	return menuExtender;
+}
+
+void FExtendEditorModule::AddLEMenuEntry(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry(
+		FText::FromString(TEXT("Lock Actor Selection")),
+		FText::FromString(TEXT("Prevent actor from been selected")),
+		FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "LevelEditor.LockActors"),
+		FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnLockActorSelectionClicked)
+	);
+
+	MenuBuilder.AddMenuEntry(
+	FText::FromString(TEXT("Unlock Actor Selection")),
+	FText::FromString(TEXT("Remove the selection constraint")),
+	FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "LevelEditor.LockActors"),
+	FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnUnlockActorSelectionClicked)
+);
+}
+
+void FExtendEditorModule::OnLockActorSelectionClicked()
+{
+	if(!GetEditorActorSubsystem())
+		return;
+
+	TArray<AActor*> selectedActors = WeakEditorActorSubsystem->GetSelectedLevelActors();
+	if(!selectedActors.Num())
+	{
+		ShowNotify(TEXT("No actor selected"));
+		return;
+	}
+
+	FString currentLockedActorNames = TEXT("Locked selection for:");
+	for(AActor* actor: selectedActors)
+	{
+		if(!actor)
+			continue;
+
+		LockActorSelection(actor);
+		WeakEditorActorSubsystem->SetActorSelectionState(actor,false);
+		currentLockedActorNames.Append(TEXT("\n"));
+		currentLockedActorNames.Append(actor->GetActorLabel());
+	}
+
+	ShowNotify(currentLockedActorNames);
+}
+
+void FExtendEditorModule::OnUnlockActorSelectionClicked()
+{
+	if(!GetEditorActorSubsystem())
+		return;
+
+	TArray<AActor*> allActors = WeakEditorActorSubsystem->GetAllLevelActors();
+	TArray<AActor*> allLockedActors;
+	for(AActor* actor : allActors)
+	{
+		if(CheckIsActorSelectionLocked(actor))
+			allLockedActors.Add(actor);
+	}
+
+	if(!allLockedActors.Num())
+		ShowNotify(TEXT("No selection locked actor currently"));
+
+	FString unlockActorNames = TEXT("Lifted selection constraint for:");
+	for(AActor* lockedActor : allLockedActors)
+	{
+		UnlockActorSelection(lockedActor);
+		unlockActorNames.Append(TEXT("\n"));
+		unlockActorNames.Append(lockedActor->GetActorLabel());
+	}
+	ShowNotify(unlockActorNames);
+}
+
+void FExtendEditorModule::InitCustomSelectionEvent()
+{
+	USelection* userSelection = GEditor->GetSelectedActors();
+	userSelection->SelectObjectEvent.AddRaw(this, &FExtendEditorModule::OnActorSelected);
+}
+
+void FExtendEditorModule::OnActorSelected(UObject* SelectedObject)
+{
+	if(AActor* selectedActor = Cast<AActor>(SelectedObject))
+	{
+		if(CheckIsActorSelectionLocked(selectedActor))
+			WeakEditorActorSubsystem->SetActorSelectionState(selectedActor, false);			
+	}
+}
+
+void FExtendEditorModule::LockActorSelection(AActor* Actor)
+{
+	if(!Actor)
+		return;
+
+	if(!Actor->ActorHasTag(FName("Locked")))
+		Actor->Tags.Add(FName("Locked"));
+}
+
+void FExtendEditorModule::UnlockActorSelection(AActor* Actor)
+{
+	if(!Actor)
+		return;
+
+	if(Actor->ActorHasTag(FName("Locked")))
+		Actor->Tags.Remove(FName("Locked"));
+}
+
+bool FExtendEditorModule::CheckIsActorSelectionLocked(AActor* Actor)
+{
+	if(!Actor)
+		return false;
+
+	return Actor->ActorHasTag(FName("Locked"));
 }
 
 #undef LOCTEXT_NAMESPACE

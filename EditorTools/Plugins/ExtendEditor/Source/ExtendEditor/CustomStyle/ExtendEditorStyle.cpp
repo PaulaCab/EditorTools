@@ -33,9 +33,13 @@ TSharedRef<FSlateStyleSet> FExtendEditorStyle::CreateSlateStyleSet()
 	const FVector2d icon16x16(16.f,16.f);
 	customStyleSet->SetContentRoot(iconDirectory);
 
-	//register icon
+	//register delete icon
 	customStyleSet->Set("ContentBrowser.DeleteAssets",
 		new FSlateImageBrush(iconDirectory/"DeleteIcon.png", icon16x16));
+
+	//register lock icon
+	customStyleSet->Set("LevelEditor.LockActors",
+		new FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16));
 	
 	return customStyleSet;
 }
