@@ -40,6 +40,19 @@ TSharedRef<FSlateStyleSet> FExtendEditorStyle::CreateSlateStyleSet()
 	//register lock icon
 	customStyleSet->Set("LevelEditor.LockActors",
 		new FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16));
+
+	//register toggle button style
+	const FCheckBoxStyle lockToggleStyle = FCheckBoxStyle()
+	.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+	.SetPadding(FMargin(10.f))
+	.SetUncheckedImage(FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16, FStyleColors::AccentBlack))
+	.SetUncheckedHoveredImage(FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16, FStyleColors::AccentBlue))
+	.SetUncheckedPressedImage(FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16, FStyleColors::Foreground))
+	.SetCheckedImage(FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16, FStyleColors::Foreground))
+	.SetCheckedHoveredImage(FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16, FStyleColors::AccentGray))
+	.SetCheckedPressedImage(FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16, FStyleColors::AccentGray));
+
+	customStyleSet->Set("SceneOutliner.SelectionLock", lockToggleStyle);
 	
 	return customStyleSet;
 }

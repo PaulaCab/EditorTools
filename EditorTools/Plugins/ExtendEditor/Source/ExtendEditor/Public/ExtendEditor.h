@@ -6,6 +6,9 @@
 #include "CustomUICommand/ExtendEditorUICommands.h"
 #include "Modules/ModuleManager.h"
 
+class ISceneOutliner;
+class ISceneOutlinerColumn;
+
 class FExtendEditorModule : public IModuleInterface
 {
 public:
@@ -43,8 +46,29 @@ private:
 	void OnActorSelected(UObject* SelectedObject);
 	void LockActorSelection(AActor* Actor);
 	void UnlockActorSelection(AActor* Actor);
+
+public:
 	bool CheckIsActorSelectionLocked(AActor* Actor);
 
+
+	// SCENE OUTLINER EXTENSION
+
+	void ProcessLockingForOuliner(AActor* Actor, bool bShouldLock);
+	
+private:	
+	void InitSceneOutlinerColumnExtension();
+	void UnregisterSceneOutlinerColumnExtension();
+	TSharedRef<ISceneOutlinerColumn> OnCreateLockColumn(ISceneOutliner& SceneOutliner);
+	void RefreshSceneOuliner();
+	
+	
+	// CUSTOM UI COMMANDS
+
+	TSharedPtr<class FUICommandList> CustomUICommands;
+	void InitCustomUICommands();
+	void OnLockHotKeyPressed();
+	void OnUnlockHotKeyPressed();
+	
 	
 	// DELETION CUSTOM TAB
 	
@@ -62,11 +86,6 @@ public:
 	void SyncCBToClickedAsset(const FString& AssetPath);
 
 
-	// CUSTOM UI COMMANDS
 
-	TSharedPtr<class FUICommandList> CustomUICommands;
-	void InitCustomUICommands();
-	void OnLockHotKeyPressed();
-	void OnUnlockHotKeyPressed();
 };
 

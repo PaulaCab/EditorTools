@@ -27,7 +27,7 @@ public class ExtendEditor : ModuleRules
 			new string[]
 			{
 				"Core", "Blutility", "EditorScriptingUtilities", "UMG", "Niagara", "UnrealEd", 
-				"ContentBrowser", "InputCore", "Projects"
+				"ContentBrowser", "InputCore", "Projects", "SceneOutliner"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

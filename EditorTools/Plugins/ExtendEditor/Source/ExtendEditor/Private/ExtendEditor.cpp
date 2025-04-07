@@ -7,8 +7,11 @@
 #include "EditorAssetLibrary.h"
 #include "LevelEditor.h"
 #include "ObjectTools.h"
+#include "SceneOutlinerModule.h"
+#include "SceneOutlinerPublicTypes.h"
 #include "Selection.h"
 #include "../CustomStyle/ExtendEditorStyle.h"
+#include "CustomOutlinerColumn/OutlinerLockColumn.h"
 #include "CustomUICommand/ExtendEditorUICommands.h"
 #include "SlateWidgets/AdvanceDeletionWidget.h"
 #include "Subsystems/EditorActorSubsystem.h"
@@ -24,6 +27,7 @@ void FExtendEditorModule::StartupModule()
 	InitLEMenuExtension();
 	RegisterAdvanceDeletionTab();
 	InitCustomSelectionEvent();
+	InitSceneOutlinerColumnExtension();
 }
 
 void FExtendEditorModule::ShutdownModule()
@@ -31,6 +35,7 @@ void FExtendEditorModule::ShutdownModule()
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
 	FExtendEditorStyle::ShutDown();
 	FExtendEditorUICommands::Unregister();
+	UnregisterSceneOutlinerColumnExtension();
 }
 
 bool FExtendEditorModule::GetEditorActorSubsystem()
@@ -372,6 +377,7 @@ void FExtendEditorModule::OnLockActorSelectionClicked()
 		currentLockedActorNames.Append(actor->GetActorLabel());
 	}
 
+	RefreshSceneOuliner();
 	ShowNotify(currentLockedActorNames);
 }
 
@@ -389,7 +395,10 @@ void FExtendEditorModule::OnUnlockActorSelectionClicked()
 	}
 
 	if(!allLockedActors.Num())
+	{
 		ShowNotify(TEXT("No selection locked actor currently"));
+		return;
+	}
 
 	FString unlockActorNames = TEXT("Lifted selection constraint for:");
 	for(AActor* lockedActor : allLockedActors)
@@ -398,6 +407,8 @@ void FExtendEditorModule::OnUnlockActorSelectionClicked()
 		unlockActorNames.Append(TEXT("\n"));
 		unlockActorNames.Append(lockedActor->GetActorLabel());
 	}
+
+	RefreshSceneOuliner();
 	ShowNotify(unlockActorNames);
 }
 
@@ -442,6 +453,20 @@ bool FExtendEditorModule::CheckIsActorSelectionLocked(AActor* Actor)
 	return Actor->ActorHasTag(FName("Locked"));
 }
 
+void FExtendEditorModule::ProcessLockingForOuliner(AActor* Actor, bool bShouldLock)
+{
+	if(!GetEditorActorSubsystem())
+		return;
+	
+	if(bShouldLock)
+	{
+		LockActorSelection(Actor);
+		WeakEditorActorSubsystem->SetActorSelectionState(Actor, false);
+	}
+	else
+		UnlockActorSelection(Actor);
+}
+
 void FExtendEditorModule::InitCustomUICommands()
 {
 	CustomUICommands = MakeShareable(new FUICommandList());
@@ -462,6 +487,42 @@ void FExtendEditorModule::OnLockHotKeyPressed()
 void FExtendEditorModule::OnUnlockHotKeyPressed()
 {
 	OnUnlockActorSelectionClicked();
+}
+
+void FExtendEditorModule::InitSceneOutlinerColumnExtension()
+{
+	auto& sceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
+
+	FSceneOutlinerColumnInfo lockColumnInfo(
+	ESceneOutlinerColumnVisibility::Visible,
+	1,
+	FCreateSceneOutlinerColumn::CreateRaw(this, &FExtendEditorModule::OnCreateLockColumn)
+	);
+
+	sceneOutlinerModule.RegisterDefaultColumnType<FOutlinerLockColumn>(lockColumnInfo);
+}
+
+void FExtendEditorModule::UnregisterSceneOutlinerColumnExtension()
+{
+	auto& sceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
+	sceneOutlinerModule.UnRegisterColumnType<FOutlinerLockColumn>();
+}
+
+TSharedRef<ISceneOutlinerColumn> FExtendEditorModule::OnCreateLockColumn(ISceneOutliner & SceneOutliner)
+{
+	return MakeShareable(new FOutlinerLockColumn(SceneOutliner));
+}
+
+void FExtendEditorModule::RefreshSceneOuliner()
+{
+	auto& levelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	auto sceneOutliner = levelEditorModule.GetFirstLevelEditor()->GetSceneOutliner();
+
+	if(sceneOutliner.IsValid())
+	{
+		sceneOutliner->FullRefresh();
+	}
 }
 
 
