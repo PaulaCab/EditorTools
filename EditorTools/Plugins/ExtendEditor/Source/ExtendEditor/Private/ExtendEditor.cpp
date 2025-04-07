@@ -9,6 +9,7 @@
 #include "ObjectTools.h"
 #include "Selection.h"
 #include "../CustomStyle/ExtendEditorStyle.h"
+#include "CustomUICommand/ExtendEditorUICommands.h"
 #include "SlateWidgets/AdvanceDeletionWidget.h"
 #include "Subsystems/EditorActorSubsystem.h"
 
@@ -17,6 +18,8 @@
 void FExtendEditorModule::StartupModule()
 {
 	FExtendEditorStyle::InitializeIcons();
+	FExtendEditorUICommands::Register();
+	InitCustomUICommands();
 	InitCBMenuExtension();
 	InitLEMenuExtension();
 	RegisterAdvanceDeletionTab();
@@ -27,6 +30,7 @@ void FExtendEditorModule::ShutdownModule()
 {
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
 	FExtendEditorStyle::ShutDown();
+	FExtendEditorUICommands::Unregister();
 }
 
 bool FExtendEditorModule::GetEditorActorSubsystem()
@@ -304,6 +308,8 @@ void FExtendEditorModule::InitLEMenuExtension()
 {
 	auto& levelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	auto& menuExtendersArray = levelEditorModule.GetAllLevelViewportContextMenuExtenders();
+	auto levelCommands = levelEditorModule.GetGlobalLevelEditorActions();
+	levelCommands->Append(CustomUICommands.ToSharedRef());
 
 	menuExtendersArray.Add(FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::
 		CreateRaw(this, &FExtendEditorModule::CustomLEMenuExtender ));
@@ -435,6 +441,29 @@ bool FExtendEditorModule::CheckIsActorSelectionLocked(AActor* Actor)
 
 	return Actor->ActorHasTag(FName("Locked"));
 }
+
+void FExtendEditorModule::InitCustomUICommands()
+{
+	CustomUICommands = MakeShareable(new FUICommandList());
+	
+	CustomUICommands->MapAction(FExtendEditorUICommands::Get().LockActorSelection,
+		FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnLockHotKeyPressed));
+
+	CustomUICommands->MapAction(FExtendEditorUICommands::Get().UnlockActorSelection,
+		FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnUnlockHotKeyPressed));
+
+}
+
+void FExtendEditorModule::OnLockHotKeyPressed()
+{
+	OnLockActorSelectionClicked();
+}
+
+void FExtendEditorModule::OnUnlockHotKeyPressed()
+{
+	OnUnlockActorSelectionClicked();
+}
+
 
 #undef LOCTEXT_NAMESPACE
 	

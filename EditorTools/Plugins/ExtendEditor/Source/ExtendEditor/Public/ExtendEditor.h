@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CustomUICommand/ExtendEditorUICommands.h"
 #include "Modules/ModuleManager.h"
 
 class FExtendEditorModule : public IModuleInterface
@@ -61,5 +62,11 @@ public:
 	void SyncCBToClickedAsset(const FString& AssetPath);
 
 
-	
+	// CUSTOM UI COMMANDS
+
+	TSharedPtr<class FUICommandList> CustomUICommands;
+	void InitCustomUICommands();
+	void OnLockHotKeyPressed();
+	void OnUnlockHotKeyPressed();
 };
+
