@@ -6,6 +6,7 @@
 #include "CustomUICommand/ExtendEditorUICommands.h"
 #include "Modules/ModuleManager.h"
 
+class UConversation;
 class ISceneOutliner;
 class ISceneOutlinerColumn;
 
@@ -32,6 +33,7 @@ private:
 	void OnDeleteUnusedAssetsClicked();
 	void OnDeleteEmptyFoldersClicked();
 	void OnAdvanceDeletionClicked();
+	void OnConversationEditorClicked();
 
 	
 	// LEVEL EDITOR MENU EXTENSION
@@ -68,7 +70,13 @@ private:
 	void InitCustomUICommands();
 	void OnLockHotKeyPressed();
 	void OnUnlockHotKeyPressed();
+
 	
+	// CONVERSATION TAB
+	
+	void RegisterConversationTab();
+	TSharedRef<SDockTab> OnSpawnConversationTab(const FSpawnTabArgs& SpawnTabArgs);
+	TArray<UConversation*> GetAllConversations();
 	
 	// DELETION CUSTOM TAB
 	

@@ -14,7 +14,9 @@
 #include "CustomOutlinerColumn/OutlinerLockColumn.h"
 #include "CustomUICommand/ExtendEditorUICommands.h"
 #include "SlateWidgets/AdvanceDeletionWidget.h"
+#include "SlateWidgets/ConversationEditorWidget.h"
 #include "Subsystems/EditorActorSubsystem.h"
+#include "EditorTools/Conversation.h"
 
 #define LOCTEXT_NAMESPACE "FExtendEditorModule"
 
@@ -26,6 +28,7 @@ void FExtendEditorModule::StartupModule()
 	InitCBMenuExtension();
 	InitLEMenuExtension();
 	RegisterAdvanceDeletionTab();
+	RegisterConversationTab();
 	InitCustomSelectionEvent();
 	InitSceneOutlinerColumnExtension();
 }
@@ -33,6 +36,7 @@ void FExtendEditorModule::StartupModule()
 void FExtendEditorModule::ShutdownModule()
 {
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("ConversationEditor"));
 	FExtendEditorStyle::ShutDown();
 	FExtendEditorUICommands::Unregister();
 	UnregisterSceneOutlinerColumnExtension();
@@ -102,7 +106,14 @@ void FExtendEditorModule::AddCBMenuEntry(FMenuBuilder& MenuBuilder)
 	FText::FromString(TEXT("Lists assets by specific conditions in a tab for deleting")),
 	FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "ContentBrowser.DeleteAssets"),
 	FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnAdvanceDeletionClicked)
-);
+	);
+
+	MenuBuilder.AddMenuEntry(
+	FText::FromString(TEXT("Conversation Editor")),
+	FText::FromString(TEXT("Displays existing conversations for editing")),
+	FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "ContentBrowser.Conversation"),
+	FExecuteAction::CreateRaw(this, &FExtendEditorModule::OnConversationEditorClicked)
+	);
 }
 
 void FExtendEditorModule::OnDeleteUnusedAssetsClicked()
@@ -200,6 +211,47 @@ void FExtendEditorModule::OnDeleteEmptyFoldersClicked()
 		ShowNotify(TEXT("Successfully deleted ") + FString::FromInt(counter) + " folders");
 
 }
+
+void FExtendEditorModule::OnConversationEditorClicked()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FName("ConversationEditor"));
+}
+
+void FExtendEditorModule::RegisterConversationTab()
+{
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FName("ConversationEditor"),
+	FOnSpawnTab::CreateRaw(this, &FExtendEditorModule::OnSpawnConversationTab))
+	.SetDisplayName(FText::FromString(TEXT("Conversation Editor")))
+	.SetIcon(FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "ContentBrowser.Conversation"));
+}
+
+TSharedRef<SDockTab> FExtendEditorModule::OnSpawnConversationTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	FString path = SelectedFolderPaths.Num()==0 ? "" : SelectedFolderPaths[0];
+	
+	return SNew(SDockTab).TabRole(NomadTab)
+	[
+		SNew(SConversationEditorTab)
+		.Conversations(GetAllConversations())
+		.SelectedFolder(path)
+	];
+}
+
+TArray<UConversation*> FExtendEditorModule::GetAllConversations()
+{
+	TArray<UConversation*> conversations;
+	auto adArray = GetAllADUnderSelectedFolder();
+
+	for (auto ad : adArray)
+	{
+		UConversation* conv = Cast<UConversation>(ad->GetAsset());
+		if(conv)
+			conversations.Add(conv);
+	}
+
+	return conversations;
+}
+
 
 #pragma region Deletion Tab
 
@@ -488,6 +540,7 @@ void FExtendEditorModule::OnUnlockHotKeyPressed()
 {
 	OnUnlockActorSelectionClicked();
 }
+
 
 void FExtendEditorModule::InitSceneOutlinerColumnExtension()
 {

@@ -37,9 +37,14 @@ TSharedRef<FSlateStyleSet> FExtendEditorStyle::CreateSlateStyleSet()
 	customStyleSet->Set("ContentBrowser.DeleteAssets",
 		new FSlateImageBrush(iconDirectory/"DeleteIcon.png", icon16x16));
 
+	//register delete icon
+	customStyleSet->Set("ContentBrowser.Conversation",
+		new FSlateImageBrush(iconDirectory/"ConversationIcon.png", icon16x16));
+
 	//register lock icon
 	customStyleSet->Set("LevelEditor.LockActors",
 		new FSlateImageBrush(iconDirectory/"LockIcon.png", icon16x16));
+	
 
 	//register toggle button style
 	const FCheckBoxStyle lockToggleStyle = FCheckBoxStyle()
