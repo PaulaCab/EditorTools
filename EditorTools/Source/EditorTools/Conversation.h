@@ -50,7 +50,6 @@ class EDITORTOOLS_API UConversation : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY() FString ConversationName = "Placeholder";
 	UPROPERTY() TArray<FLine> Lines = {FLine()};
 
 	void DeleteLine(FLine& Line);

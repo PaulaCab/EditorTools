@@ -28,16 +28,19 @@ class  SConversationEditorTab : public SCompoundWidget
 public:
 	void Construct(const FArguments& InArgs);
 
-private:	
+private:
+	FText NewName;
 	FString FolderPath;
 	TArray<TSharedPtr<FString>> SpeakerOptions;
 	TArray<TSharedPtr<FString>> EmotionOptions;
 	
 	TSharedPtr<SListView<TSharedPtr<FLineDisplayData>>> LineListView;
+	TSharedPtr<SListView<UConversation*>> ConversationListView;
 	TArray<TSharedPtr<FLineDisplayData>> CurrentLineList;
 	TArray<UConversation*> ConversationList;
 	UConversation* SelectedConversation = nullptr;
-	
+
+	UConversation* CreateConversation();
 	FReply OnNewConversationClicked();
 	FReply OnDeleteConversationClicked();
 	FReply OnSaveConversationClicked();

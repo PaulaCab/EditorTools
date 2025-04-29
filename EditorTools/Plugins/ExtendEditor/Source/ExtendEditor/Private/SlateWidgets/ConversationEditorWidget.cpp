@@ -3,7 +3,8 @@
 
 #include "SlateWidgets/ConversationEditorWidget.h"
 
-#include "FileHelpers.h"
+#include "DebugHelper.h"
+#include "EditorAssetLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorTools/Conversation.h"
 #include "UObject/SavePackage.h"
@@ -28,13 +29,14 @@ void SConversationEditorTab::Construct(const FArguments& InArgs)
 		SNew(SHorizontalBox)
 
 		+SHorizontalBox::Slot()
+		.Padding(FMargin(10.f, 0.f))
 		.HAlign(HAlign_Left)
 		.AutoWidth()
 		[
 			SNew(SVerticalBox)
 			
 			+SVerticalBox::Slot()
-			.Padding(FMargin(0.f, 10.f, 0.f, 0.f))
+			.Padding(FMargin(20.f, 10.f))
 			.AutoHeight()
 			[
 				SNew(STextBlock)
@@ -53,7 +55,32 @@ void SConversationEditorTab::Construct(const FArguments& InArgs)
 					ConstructConversationList()
 				]
 			]
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(FMargin(0.f, 0.f, 2.f, 0.f))
+			[
+				SNew(SHorizontalBox)
 
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("Name:")))
+					.Justification(ETextJustify::Left)
+				]
+				
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				[
+				SNew(SEditableTextBox)
+				.Text(NewName)
+				.OnTextCommitted_Lambda([this](const FText& NewText, ETextCommit::Type)
+				{
+					NewName = NewText;
+				})
+				]	
+			]
+			
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -71,11 +98,11 @@ void SConversationEditorTab::Construct(const FArguments& InArgs)
 			SNew(SVerticalBox)
 				
 			+SVerticalBox::Slot()
-			.Padding(FMargin(0.f, 10.f, 0.f, 0.f))
+			.Padding(FMargin(0.f, 10.f))
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(SelectedConversation ? SelectedConversation->ConversationName : TEXT("Invalid")))
+				.Text_Lambda([this](){return FText::FromString(SelectedConversation ? SelectedConversation->GetName() : TEXT("Invalid"));})
 				.Font(titleFont)
 				.Justification(ETextJustify::Center)
 				.ColorAndOpacity(FColor::White)
@@ -120,15 +147,78 @@ void SConversationEditorTab::Construct(const FArguments& InArgs)
 }
 
 
+UConversation* SConversationEditorTab::CreateConversation()
+{
+	const FString ValidPackageName = FPackageName::ObjectPathToPackageName(FolderPath / NewName.ToString());
+	
+	UPackage* Package = CreatePackage(*ValidPackageName);
+	if (!Package) return nullptr;
+	
+	UConversation* NewAsset = NewObject<UConversation>(Package, UConversation::StaticClass(), *NewName.ToString(), RF_Public | RF_Standalone);
+
+	if (!NewAsset) return nullptr;
+	
+	NewAsset->MarkPackageDirty();
+	FAssetRegistryModule::AssetCreated(NewAsset);
+	
+	FString PackageFileName = FPackageName::LongPackageNameToFilename(ValidPackageName, FPackageName::GetAssetPackageExtension());
+	UPackage::SavePackage(Package, NewAsset, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *PackageFileName);
+
+	return NewAsset;
+}
+
 FReply SConversationEditorTab::OnNewConversationClicked()
 {
-	//TODO:
+	if (!UEditorAssetLibrary::DoesDirectoryExist(FolderPath))
+	{
+		UEditorAssetLibrary::MakeDirectory(FolderPath);
+	}
+
+	//Check the name is valid
+	if (NewName.IsEmpty() || NewName.ToString().Contains(TEXT(" ")))
+	{
+		ShowMsg(EAppMsgType::Ok, TEXT("Enter a valid name"));
+		return FReply::Handled();
+	}
+
+	//Check if exist asset with same name
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	FString FullAssetPath = FolderPath / *NewName.ToString();
+	FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*FullAssetPath));
+	if(AssetData.IsValid())
+	{
+		ShowMsg(EAppMsgType::Ok, TEXT("Enter a valid name"));
+		return FReply::Handled();
+	}
+	
+	auto* conv = CreateConversation();
+	if(conv)
+	{
+		ConversationList.Add(conv);
+		ConversationListView->RequestListRefresh();
+		SelectedConversation = conv;
+		RefreshLines();
+	}
 	return FReply::Handled();
 }
 
 FReply SConversationEditorTab::OnDeleteConversationClicked()
 {
-	//TODO:
+	if(!SelectedConversation)
+		return FReply::Handled();
+	
+	ConversationList.Remove(SelectedConversation);
+	
+	UEditorAssetLibrary::DeleteAsset(FolderPath / SelectedConversation->GetName());
+	
+	if(ConversationList.Num())
+		SelectedConversation = ConversationList[0];
+	else SelectedConversation =  nullptr;
+
+	RefreshLines();
+	
 	return FReply::Handled();
 }
 
@@ -146,13 +236,6 @@ FReply SConversationEditorTab::OnSaveConversationClicked()
 	FSavePackageArgs SaveArgs;
 	const bool bSucceeded = UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs);
 	
-	// if (Package)
-	// {
-	// 	TArray<UPackage*> PackagesToSave;
-	// 	PackagesToSave.Add(Package);
-	//
-	// 	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, /*bCheckDirty=*/true, /*bPromptToSave=*/false);
-	// }
 	if(bSucceeded)
 		UE_LOG(LogTemp, Warning, TEXT("Package '%s' was successfully saved"), *PackageName)
 	
@@ -162,7 +245,7 @@ FReply SConversationEditorTab::OnSaveConversationClicked()
 
 TSharedRef<SListView<UConversation*>> SConversationEditorTab::ConstructConversationList()
 {
-	auto convList = SNew(SListView<UConversation*>)
+	ConversationListView = SNew(SListView<UConversation*>)
 	.ItemHeight(24.f)
 	.ListItemsSource(&ConversationList)
 	.OnGenerateRow_Lambda([](UConversation* InItem, const TSharedRef<STableViewBase>& OwnerTable)
@@ -170,14 +253,13 @@ TSharedRef<SListView<UConversation*>> SConversationEditorTab::ConstructConversat
 		return SNew(STableRow<UConversation*>, OwnerTable)
 		[
 			SNew(STextBlock)
-			.Text(FText::FromString(IsValid(InItem) ? InItem->ConversationName : TEXT("Invalid Item")))
+			.Text(FText::FromString(IsValid(InItem) ? InItem->GetName() : TEXT("Invalid Item")))
 		];
 	})
 	.OnMouseButtonClick(this, &SConversationEditorTab::OnConvNameClicked);
 
-	return convList;
+	return ConversationListView.ToSharedRef();
 }
-
 
 
 void SConversationEditorTab::OnConvNameClicked(UConversation* Conv)
@@ -193,11 +275,14 @@ void SConversationEditorTab::RefreshLines()
 {
 	CurrentLineList.Empty();
 	int16 index = 0;
-	for (FLine& line : SelectedConversation->Lines)
+	if(SelectedConversation)
 	{
-		auto linePtr = TSharedPtr<FLine>(&line, [](FLine*) {});
-		CurrentLineList.Add(MakeShared<FLineDisplayData>(FLineDisplayData{index, linePtr}));
-		index++;
+		for (FLine& line : SelectedConversation->Lines)
+		{
+			auto linePtr = TSharedPtr<FLine>(&line, [](FLine*) {});
+			CurrentLineList.Add(MakeShared<FLineDisplayData>(FLineDisplayData{index, linePtr}));
+			index++;
+		}
 	}
 
 	if (LineListView.IsValid())
