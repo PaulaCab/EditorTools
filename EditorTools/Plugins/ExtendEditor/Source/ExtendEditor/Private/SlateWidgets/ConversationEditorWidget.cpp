@@ -2,7 +2,11 @@
 
 
 #include "SlateWidgets/ConversationEditorWidget.h"
+
+#include "FileHelpers.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorTools/Conversation.h"
+#include "UObject/SavePackage.h"
 
 void SConversationEditorTab::Construct(const FArguments& InArgs)
 {
@@ -43,7 +47,11 @@ void SConversationEditorTab::Construct(const FArguments& InArgs)
 			+SVerticalBox::Slot()
 			.VAlign(VAlign_Fill)
 			[
-				ConstructConversationList()
+				SNew(SScrollBox)
+				+ SScrollBox::Slot()
+				[
+					ConstructConversationList()
+				]
 			]
 
 			+SVerticalBox::Slot()
@@ -58,6 +66,7 @@ void SConversationEditorTab::Construct(const FArguments& InArgs)
 
 		+SHorizontalBox::Slot()
 		.FillWidth(1.f)
+		.Padding(FMargin(10.f, 0.f))
 		[
 			SNew(SVerticalBox)
 				
@@ -75,16 +84,36 @@ void SConversationEditorTab::Construct(const FArguments& InArgs)
 			+SVerticalBox::Slot()
 			.VAlign(VAlign_Fill)
 			[
-				ConstructLineList()
+				SNew(SScrollBox)
+				+ SScrollBox::Slot()
+				[
+					ConstructLineList()
+				]
 			]
-			
+
 			+SVerticalBox::Slot()
+			.HAlign(HAlign_Right)
 			.AutoHeight()
 			[
-				SNew(SButton)
-				.HAlign(HAlign_Center) 
-				.Text(FText::FromString(TEXT("Delete Conversation")))
-				.OnClicked(this, &SConversationEditorTab::OnDeleteConversationClicked)
+				SNew(SHorizontalBox)
+				
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center) 
+					.Text(FText::FromString(TEXT("Save Conversation")))
+					.OnClicked(this, &SConversationEditorTab::OnSaveConversationClicked)
+				]
+
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center) 
+					.Text(FText::FromString(TEXT("Delete Conversation")))
+					.OnClicked(this, &SConversationEditorTab::OnDeleteConversationClicked)
+				]
 			]
 		]
 	];
@@ -100,6 +129,33 @@ FReply SConversationEditorTab::OnNewConversationClicked()
 FReply SConversationEditorTab::OnDeleteConversationClicked()
 {
 	//TODO:
+	return FReply::Handled();
+}
+
+FReply SConversationEditorTab::OnSaveConversationClicked()
+{
+	if(!SelectedConversation)
+		return FReply::Handled();
+
+	SelectedConversation->Modify();
+
+	UPackage* Package = SelectedConversation->GetPackage();
+	const FString PackageName = Package->GetName();
+	const FString PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
+
+	FSavePackageArgs SaveArgs;
+	const bool bSucceeded = UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs);
+	
+	// if (Package)
+	// {
+	// 	TArray<UPackage*> PackagesToSave;
+	// 	PackagesToSave.Add(Package);
+	//
+	// 	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, /*bCheckDirty=*/true, /*bPromptToSave=*/false);
+	// }
+	if(bSucceeded)
+		UE_LOG(LogTemp, Warning, TEXT("Package '%s' was successfully saved"), *PackageName)
+	
 	return FReply::Handled();
 }
 
@@ -130,29 +186,39 @@ void SConversationEditorTab::OnConvNameClicked(UConversation* Conv)
 		return;
 	
 	SelectedConversation = Conv;
+	RefreshLines();
+}
 
+void SConversationEditorTab::RefreshLines()
+{
 	CurrentLineList.Empty();
+	int16 index = 0;
 	for (FLine& line : SelectedConversation->Lines)
 	{
-		CurrentLineList.Add(TSharedPtr<FLine>(&line, [](FLine*) {}));
+		auto linePtr = TSharedPtr<FLine>(&line, [](FLine*) {});
+		CurrentLineList.Add(MakeShared<FLineDisplayData>(FLineDisplayData{index, linePtr}));
+		index++;
 	}
 
 	if (LineListView.IsValid())
 		LineListView->RequestListRefresh();
 }
 
-TSharedRef<SListView<TSharedPtr<FLine>>> SConversationEditorTab::ConstructLineList()
+TSharedRef<SListView<TSharedPtr<FLineDisplayData>>> SConversationEditorTab::ConstructLineList()
 {
 	if(!SelectedConversation)
-		return SNew(SListView<TSharedPtr<FLine>>);
+		return SNew(SListView<TSharedPtr<FLineDisplayData>>);
 	
 	CurrentLineList.Empty();
+	int16 index = 0;
 	for (FLine& line : SelectedConversation->Lines)
 	{
-		CurrentLineList.Add(TSharedPtr<FLine>(&line, [](FLine*) {}));
+		auto linePtr = TSharedPtr<FLine>(&line, [](FLine*) {});
+		CurrentLineList.Add(MakeShared<FLineDisplayData>(FLineDisplayData{index, linePtr}));
+		index++;
 	}
 	
-	LineListView = SNew(SListView<TSharedPtr<FLine>>)
+	LineListView = SNew(SListView<TSharedPtr<FLineDisplayData>>)
 	.ItemHeight(24.f)
 	.ListItemsSource(&CurrentLineList)
 	.OnGenerateRow(this, &SConversationEditorTab::OnGenerateRowForList);
@@ -160,23 +226,32 @@ TSharedRef<SListView<TSharedPtr<FLine>>> SConversationEditorTab::ConstructLineLi
 	return LineListView.ToSharedRef();
 }
 
-TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FLine> InLine,
+TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FLineDisplayData> Data,
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
-	if(!InLine)
+	if(!Data || !Data->Line)
 		return  SNew(STableRow<TSharedPtr<FAssetData>>, OwnerTable);
 	
-	return SNew(STableRow<TSharedPtr<FLine>>, OwnerTable)
+	auto table =  SNew(STableRow<TSharedPtr<FLine>>, OwnerTable)
 	.Padding(FMargin(4))
 	[
 		SNew(SVerticalBox)
 
-		// ─── Speaker & Emotion ─────────────────────────────────
+		// ─── Index, Speaker & Emotion ────────────────────────
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
 
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(0, 5, 10, 0)) 
+			[
+				SNew(STextBlock)
+				.Text(FText::AsNumber(Data->Index))
+				.Font(FCoreStyle::Get().GetFontStyle("EmbossedText"))
+			]
+			
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Bottom)
@@ -188,7 +263,7 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				ConstructSpeakerComboBox(InLine)
+				ConstructSpeakerComboBox(Data->Line)
 			]
 
 			+ SHorizontalBox::Slot()
@@ -202,25 +277,26 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				ConstructEmotionComboBox(InLine)
+				ConstructEmotionComboBox(Data->Line)
 			]
 		]
 
 		// ─── Text (Editable) ─────────────────────────────────
 		+ SVerticalBox::Slot()
-		.Padding(FMargin(0, 5, 0, 5))
+		.Padding(FMargin(15, 5, 0, 5))
 		.AutoHeight()
 		[
 			SNew(SEditableTextBox)
-			.Text(InLine->Text)
-			.OnTextCommitted_Lambda([InLine](const FText& NewText, ETextCommit::Type)
+			.Text(Data->Line->Text)
+			.OnTextCommitted_Lambda([Data](const FText& NewText, ETextCommit::Type)
 			{
-				InLine->Text = NewText;
+				Data->Line->Text = NewText;
 			})
 		]
 
 		// ─── HasAnswer + NextLine (condicional) ─────────────
 		+ SVerticalBox::Slot()
+		.Padding(FMargin(15, 0, 0, 5))
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
@@ -229,10 +305,10 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 			.AutoWidth()
 			[
 				SNew(SCheckBox)
-				.IsChecked(InLine->bHasAnswer ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-				.OnCheckStateChanged_Lambda([InLine](ECheckBoxState NewState)
+				.IsChecked(Data->Line->bHasAnswer ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.OnCheckStateChanged_Lambda([Data](ECheckBoxState NewState)
 				{
-					InLine->bHasAnswer = (NewState == ECheckBoxState::Checked);
+					Data->Line->bHasAnswer = (NewState == ECheckBoxState::Checked);
 				})
 				[
 					SNew(STextBlock).Text(FText::FromString("Has Answer"))
@@ -242,12 +318,12 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(FMargin(10, 0, 6, 0))
+			.Padding(FMargin(15, 0, 6, 0))
 			[
 				SNew(SBox)
-				.Visibility_Lambda([InLine]()
+				.Visibility_Lambda([Data]()
 				{
-				return InLine->bHasAnswer ? EVisibility::Collapsed : EVisibility::Visible;
+				return Data->Line->bHasAnswer ? EVisibility::Collapsed : EVisibility::Visible;
 				})
 				[
 					SNew(STextBlock).Text(FText::FromString("Next Line:"))
@@ -258,16 +334,16 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.Visibility_Lambda([InLine]()
+				.Visibility_Lambda([Data]()
 				{
-					return InLine->bHasAnswer ? EVisibility::Collapsed : EVisibility::Visible;
+					return Data->Line->bHasAnswer ? EVisibility::Collapsed : EVisibility::Visible;
 				})
 				[
 					SNew(SEditableTextBox)
-					.Text(FText::AsNumber(InLine->NextLine))
-					.OnTextCommitted_Lambda([InLine](const FText& NewText, ETextCommit::Type)
+					.Text(FText::AsNumber(Data->Line->NextLine))
+					.OnTextCommitted_Lambda([Data](const FText& NewText, ETextCommit::Type)
 					{
-						InLine->NextLine = FCString::Atoi(*NewText.ToString());
+						Data->Line->NextLine = FCString::Atoi(*NewText.ToString());
 					})
 				]
 			]
@@ -275,20 +351,30 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 
 		// ─── Answers list (condicional) ──────────────────────
 		+ SVerticalBox::Slot()
+		.Padding(FMargin(10, 5, 0, 5))
 		.AutoHeight()
 		[
 			//TODO: new slistview
 			SNew(SBox)
-			.Visibility_Lambda([InLine]()
+			.Visibility_Lambda([Data]()
 			{
-				return InLine->bHasAnswer ? EVisibility::Visible : EVisibility::Collapsed;
+				return Data->Line->bHasAnswer ? EVisibility::Visible : EVisibility::Collapsed;
 			})
 			[
 				// Acá podrías poner un SListView o simplemente un scroll editable de respuestas
 				SNew(STextBlock).Text(FText::FromString("Answers UI aquí")) // Placeholder
 			]
 		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0, 4, 0, 0)
+		[
+			ConstructButtonsHBox(Data->Line)
+		]
 	];
+	
+	return table;
 }
 
 TSharedRef<SComboBox<TSharedPtr<FString>>> SConversationEditorTab::ConstructSpeakerComboBox(TSharedPtr<FLine> InLine)
@@ -351,6 +437,85 @@ TSharedRef<SComboBox<TSharedPtr<FString>>> SConversationEditorTab::ConstructEmot
 ];
 
 	return comboBox;
+}
+
+TSharedRef<SHorizontalBox> SConversationEditorTab::ConstructButtonsHBox(TSharedPtr<FLine> InLine)
+{
+	auto horizontalBox = SNew(SHorizontalBox)
+
+	+ SHorizontalBox::Slot()
+	.FillWidth(1.f)
+	[
+		SNew(SSpacer) // Para empujar los botones a la derecha
+	]
+
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+			ConstructIconButton(FCoreStyle::Get().GetBrush("Icons.ChevronUp"),
+			FOnClicked::CreateLambda([InLine]() {
+			// Mover hacia arriba
+			return FReply::Handled();
+		}))
+	]
+
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		ConstructIconButton(FCoreStyle::Get().GetBrush("Icons.ChevronDown"),
+		FOnClicked::CreateLambda([InLine]() {
+			// Mover hacia arriba
+			return FReply::Handled();
+		}))
+	]
+
+	// Add line
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		ConstructIconButton(FAppStyle::Get().GetBrush("Icons.Plus"),
+		FOnClicked::CreateLambda([InLine,this]() {
+			if(SelectedConversation)
+			{
+				SelectedConversation->NewLine(*InLine);
+				RefreshLines();
+			}
+
+			return FReply::Handled();
+		}))
+	]
+
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		ConstructIconButton(FAppStyle::Get().GetBrush("Icons.Delete"),
+		FOnClicked::CreateLambda([InLine,this]() {
+			if(SelectedConversation)
+			{
+				SelectedConversation->DeleteLine(*InLine);
+				RefreshLines();
+			}
+			return FReply::Handled();
+		}))
+	];
+
+	return horizontalBox;
+}
+
+TSharedRef<SWidget> SConversationEditorTab::ConstructIconButton(const FSlateBrush* IconBrush, FOnClicked OnClickedCallback)
+{
+	auto button =  SNew(SButton)
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+		.ContentPadding(2)
+		.OnClicked(OnClickedCallback)
+		[
+			SNew(SImage)
+			.Image(IconBrush)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+		];
+	
+	return button;
+	
 };
 
 template <typename TEnum>
@@ -365,8 +530,6 @@ TArray<TSharedPtr<FString>> SConversationEditorTab::GetEnumOptions()
 		Options.Add(MakeShared<FString>(EnumPtr->GetNameStringByIndex(i)));
 	}
 	return Options;
-
-	
 }
 
 

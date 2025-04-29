@@ -35,8 +35,8 @@ void FExtendEditorModule::StartupModule()
 
 void FExtendEditorModule::ShutdownModule()
 {
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("ConversationEditor"));
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FName("AdvanceDeletion"));
 	FExtendEditorStyle::ShutDown();
 	FExtendEditorUICommands::Unregister();
 	UnregisterSceneOutlinerColumnExtension();
@@ -220,7 +220,8 @@ void FExtendEditorModule::OnConversationEditorClicked()
 void FExtendEditorModule::RegisterConversationTab()
 {
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FName("ConversationEditor"),
-	FOnSpawnTab::CreateRaw(this, &FExtendEditorModule::OnSpawnConversationTab))
+	FOnSpawnTab::CreateRaw(this, &FExtendEditorModule::OnSpawnConversationTab),
+	FCanSpawnTab::CreateLambda([this](const FSpawnTabArgs& Args) { return  SelectedFolderPaths.Num()!=0; }))
 	.SetDisplayName(FText::FromString(TEXT("Conversation Editor")))
 	.SetIcon(FSlateIcon(FExtendEditorStyle::GetStyleSetName(), "ContentBrowser.Conversation"));
 }

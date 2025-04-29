@@ -8,6 +8,12 @@
 class UConversation;
 struct FLine;
 
+struct FLineDisplayData
+{
+	int32 Index;
+	TSharedPtr<FLine> Line;
+};
+
 class  SConversationEditorTab : public SCompoundWidget
 {
 
@@ -22,27 +28,32 @@ class  SConversationEditorTab : public SCompoundWidget
 public:
 	void Construct(const FArguments& InArgs);
 
-private:
+private:	
 	FString FolderPath;
 	TArray<TSharedPtr<FString>> SpeakerOptions;
 	TArray<TSharedPtr<FString>> EmotionOptions;
 	
-	TSharedPtr<SListView<TSharedPtr<FLine>>> LineListView;
-	TArray<TSharedPtr<FLine>> CurrentLineList;
+	TSharedPtr<SListView<TSharedPtr<FLineDisplayData>>> LineListView;
+	TArray<TSharedPtr<FLineDisplayData>> CurrentLineList;
 	TArray<UConversation*> ConversationList;
 	UConversation* SelectedConversation = nullptr;
 	
 	FReply OnNewConversationClicked();
 	FReply OnDeleteConversationClicked();
+	FReply OnSaveConversationClicked();
 
 	TSharedRef<SListView<UConversation*>> ConstructConversationList();
 	void OnConvNameClicked(UConversation* Conv);
 
-	TSharedRef<SListView<TSharedPtr<FLine>>> ConstructLineList();
-	TSharedRef<ITableRow> OnGenerateRowForList(TSharedPtr<FLine> AssetDataToDisplay, const TSharedRef<STableViewBase>& OwnerTable);
+	void RefreshLines();
+
+	TSharedRef<SListView<TSharedPtr<FLineDisplayData>>> ConstructLineList();
+	TSharedRef<ITableRow> OnGenerateRowForList(TSharedPtr<FLineDisplayData> Data, const TSharedRef<STableViewBase>& OwnerTable);
 
 	TSharedRef<SComboBox<TSharedPtr<FString>>> ConstructSpeakerComboBox(TSharedPtr<FLine> InLine);
 	TSharedRef<SComboBox<TSharedPtr<FString>>> ConstructEmotionComboBox(TSharedPtr<FLine> InLine);
+	TSharedRef<SHorizontalBox> ConstructButtonsHBox(TSharedPtr<FLine> InLine);
+	TSharedRef<SWidget> ConstructIconButton(const FSlateBrush* IconBrush, FOnClicked OnClickedCallback);
 	
 	template<typename TEnum>
 	TArray<TSharedPtr<FString>> GetEnumOptions(); 
