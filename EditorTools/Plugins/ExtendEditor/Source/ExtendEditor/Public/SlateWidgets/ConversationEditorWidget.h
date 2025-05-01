@@ -3,16 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "Widgets/SCompoundWidget.h"
 
 class UConversation;
+struct FAnswer;
 struct FLine;
 
 struct FLineDisplayData
 {
 	int32 Index;
 	TSharedPtr<FLine> Line;
+	TArray<TSharedPtr<FAnswer>> AnswerList;
+	TSharedPtr<SListView<TSharedPtr<FAnswer>>> AnswerListView;
 };
+
 
 class  SConversationEditorTab : public SCompoundWidget
 {
@@ -46,12 +51,13 @@ private:
 	FReply OnSaveConversationClicked();
 
 	TSharedRef<SListView<UConversation*>> ConstructConversationList();
-	void OnConvNameClicked(UConversation* Conv);
-
-	void RefreshLines();
-
 	TSharedRef<SListView<TSharedPtr<FLineDisplayData>>> ConstructLineList();
+	TSharedRef<SListView<TSharedPtr<FAnswer>>> ConstructAnswerList(TSharedPtr<FLineDisplayData> Data);
+	
+	void OnConvNameClicked(UConversation* Conv);
 	TSharedRef<ITableRow> OnGenerateRowForList(TSharedPtr<FLineDisplayData> Data, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> OnGenerateRowForAnswer(TSharedPtr<FAnswer> Answer, const TSharedRef<STableViewBase>& OwnerTable);
+	void RefreshLines();
 
 	TSharedRef<SComboBox<TSharedPtr<FString>>> ConstructSpeakerComboBox(TSharedPtr<FLine> InLine);
 	TSharedRef<SComboBox<TSharedPtr<FString>>> ConstructEmotionComboBox(TSharedPtr<FLine> InLine);

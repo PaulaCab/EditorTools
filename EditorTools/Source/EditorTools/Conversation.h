@@ -23,6 +23,15 @@ enum class EEmotion : int8
 };
 
 USTRUCT()
+struct FAnswer
+{
+	GENERATED_BODY()
+	
+	UPROPERTY() FText Text;
+	UPROPERTY() int NextLine = -1;
+};
+
+USTRUCT()
 struct FLine
 {
 	GENERATED_BODY()
@@ -32,7 +41,7 @@ struct FLine
 	UPROPERTY() FText Text;
 	UPROPERTY() bool bHasAnswer = false;
 	UPROPERTY() int NextLine = -1;
-	TArray<TPair<FText, int>> Answers;	
+	UPROPERTY() TArray<FAnswer> Answers;
 };
 
 FORCEINLINE bool operator==(const FLine& A, const FLine& B)
@@ -53,5 +62,8 @@ public:
 	UPROPERTY() TArray<FLine> Lines = {FLine()};
 
 	void DeleteLine(FLine& Line);
-	void NewLine( FLine& Line);
+	void NewLine(FLine& Line);
+
+	void NewAnswer(FLine& Line);
+	void DeleteAnswer(FLine& Line);
 };

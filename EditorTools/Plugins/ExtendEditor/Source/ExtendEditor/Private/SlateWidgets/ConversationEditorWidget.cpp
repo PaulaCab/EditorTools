@@ -5,8 +5,8 @@
 
 #include "DebugHelper.h"
 #include "EditorAssetLibrary.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorTools/Conversation.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/SavePackage.h"
 
 void SConversationEditorTab::Construct(const FArguments& InArgs)
@@ -312,7 +312,7 @@ TSharedRef<SListView<TSharedPtr<FLineDisplayData>>> SConversationEditorTab::Cons
 }
 
 TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FLineDisplayData> Data,
-	const TSharedRef<STableViewBase>& OwnerTable)
+                                                                   const TSharedRef<STableViewBase>& OwnerTable)
 {
 	if(!Data || !Data->Line)
 		return  SNew(STableRow<TSharedPtr<FAssetData>>, OwnerTable);
@@ -379,7 +379,7 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 			})
 		]
 
-		// ─── HasAnswer + NextLine (condicional) ─────────────
+		// ─── HasAnswer + NextLine (conditional) ─────────────
 		+ SVerticalBox::Slot()
 		.Padding(FMargin(15, 0, 0, 5))
 		.AutoHeight()
@@ -434,22 +434,69 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 			]
 		]
 
-		// ─── Answers list (condicional) ──────────────────────
+		// ─── Answers buttons (conditional) ────────────────────
+		+ SVerticalBox::Slot()
+		.Padding(FMargin(15, 5, 0, 0))
+		[
+			SNew(SHorizontalBox)
+			.Visibility_Lambda([Data]()
+			{
+				return Data->Line->bHasAnswer ? EVisibility::Visible : EVisibility::Collapsed;
+			})
+
+			+SHorizontalBox::Slot()
+			.Padding(FMargin(0, 05, 5, 0))
+			.AutoWidth()
+			.VAlign(VAlign_Bottom)
+			[
+				SNew(STextBlock).Text(FText::FromString("Answers:"))
+			]
+			
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			[
+				ConstructIconButton(FAppStyle::Get().GetBrush("Icons.Plus"),
+				FOnClicked::CreateLambda([this, Data]() {
+					if(SelectedConversation)
+					{
+						SelectedConversation->NewAnswer(*Data->Line);
+						RefreshLines();
+					}
+					return FReply::Handled();
+				}))
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			[
+				ConstructIconButton(FAppStyle::Get().GetBrush("Icons.Delete"),
+				FOnClicked::CreateLambda([this, Data]() {
+					if(SelectedConversation)
+					{
+						SelectedConversation->DeleteAnswer(*Data->Line);
+						RefreshLines();
+					}						
+					return FReply::Handled();
+				}))
+			]		
+		]
+		
+		// ─── Answers list (conditional) ──────────────────────
 		+ SVerticalBox::Slot()
 		.Padding(FMargin(10, 5, 0, 5))
 		.AutoHeight()
 		[
-			//TODO: new slistview
 			SNew(SBox)
 			.Visibility_Lambda([Data]()
 			{
 				return Data->Line->bHasAnswer ? EVisibility::Visible : EVisibility::Collapsed;
 			})
 			[
-				// Acá podrías poner un SListView o simplemente un scroll editable de respuestas
-				SNew(STextBlock).Text(FText::FromString("Answers UI aquí")) // Placeholder
+				ConstructAnswerList(Data)
 			]
 		]
+		
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
@@ -461,6 +508,65 @@ TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForList(TSharedPtr<FL
 	
 	return table;
 }
+
+
+TSharedRef<SListView<TSharedPtr<FAnswer>>> SConversationEditorTab::ConstructAnswerList(TSharedPtr<FLineDisplayData> Data)
+{
+	Data->AnswerList.Empty();
+	if(Data->Line->Answers.Num())
+	{
+		for (FAnswer& answer : Data->Line->Answers)
+		{
+			Data->AnswerList.Add(TSharedPtr<FAnswer>(&answer, [](FAnswer*) {}));
+		}	
+	}
+	
+	Data->AnswerListView = SNew(SListView<TSharedPtr<FAnswer>>)
+	.ItemHeight(24.f)
+	.ListItemsSource(&Data->AnswerList)
+	.OnGenerateRow(this, &SConversationEditorTab::OnGenerateRowForAnswer);
+	
+	return Data->AnswerListView.ToSharedRef();	
+}
+
+TSharedRef<ITableRow> SConversationEditorTab::OnGenerateRowForAnswer(TSharedPtr<FAnswer> Answer,
+	const TSharedRef<STableViewBase>& OwnerTable)
+{
+	 if(!Answer)
+	 	return  SNew(STableRow<TSharedPtr<FAssetData>>, OwnerTable);
+	
+	auto table =  SNew(STableRow<TSharedPtr<FAnswer>>, OwnerTable)
+	.Padding(FMargin(4))
+	[
+		SNew(SHorizontalBox)
+	
+		+SHorizontalBox::Slot()
+		[
+			SNew(SEditableTextBox)
+			.Text_Lambda([Answer]() {
+				return Answer->Text;
+			})
+			.OnTextCommitted_Lambda([Answer](const FText& NewText, ETextCommit::Type)
+			{
+				Answer->Text = NewText;
+			})
+		]
+	
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SEditableTextBox)
+			.Text(FText::AsNumber(Answer->NextLine))
+			.OnTextCommitted_Lambda([Answer](const FText& NewText, ETextCommit::Type)
+			{
+				Answer->NextLine = FCString::Atoi(*NewText.ToString());
+			})
+		]
+	];
+
+	return table;
+}
+
 
 TSharedRef<SComboBox<TSharedPtr<FString>>> SConversationEditorTab::ConstructSpeakerComboBox(TSharedPtr<FLine> InLine)
 {
@@ -531,7 +637,7 @@ TSharedRef<SHorizontalBox> SConversationEditorTab::ConstructButtonsHBox(TSharedP
 	+ SHorizontalBox::Slot()
 	.FillWidth(1.f)
 	[
-		SNew(SSpacer) // Para empujar los botones a la derecha
+		SNew(SSpacer)
 	]
 
 	+ SHorizontalBox::Slot()
@@ -539,7 +645,7 @@ TSharedRef<SHorizontalBox> SConversationEditorTab::ConstructButtonsHBox(TSharedP
 	[
 			ConstructIconButton(FCoreStyle::Get().GetBrush("Icons.ChevronUp"),
 			FOnClicked::CreateLambda([InLine]() {
-			// Mover hacia arriba
+			// TODO: Mover hacia arriba
 			return FReply::Handled();
 		}))
 	]
@@ -549,7 +655,7 @@ TSharedRef<SHorizontalBox> SConversationEditorTab::ConstructButtonsHBox(TSharedP
 	[
 		ConstructIconButton(FCoreStyle::Get().GetBrush("Icons.ChevronDown"),
 		FOnClicked::CreateLambda([InLine]() {
-			// Mover hacia arriba
+			// TODO: Mover hacia abajo
 			return FReply::Handled();
 		}))
 	]

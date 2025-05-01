@@ -3,6 +3,7 @@
 
 #include "Conversation.h"
 
+
 void UConversation::DeleteLine(FLine& Line)
 {
 	if(Lines.Num()<2)
@@ -21,8 +22,23 @@ void UConversation::NewLine( FLine& Line)
 	
 	if(index == INDEX_NONE)
 		index = Lines.Num()-1;
+
+	FLine newLine = FLine();
 	
-	Lines.Insert(FLine(), index+1);
+	Lines.Insert(newLine, index+1);
 	if(index<Lines.Num()-2)
-	Lines[index+1].NextLine = index+2;
+		newLine.NextLine = index+2;
+}
+
+void UConversation::NewAnswer(FLine& Line)
+{
+	FAnswer answer = FAnswer();
+	Line.Answers.Add(FAnswer());
+	
+}
+
+void UConversation::DeleteAnswer(FLine& Line)
+{
+	if(Line.Answers.Num())
+		Line.Answers.RemoveAt(Line.Answers.Num()-1);
 }
