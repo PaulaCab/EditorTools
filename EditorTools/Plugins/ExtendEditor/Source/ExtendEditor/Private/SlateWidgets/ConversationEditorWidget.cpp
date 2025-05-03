@@ -15,8 +15,6 @@ void SConversationEditorTab::Construct(const FArguments& InArgs)
 	ConversationList = InArgs._Conversations;
 	if(ConversationList.Num())
 		SelectedConversation = ConversationList[0];
-	else
-		return;
 	
 	SpeakerOptions = GetEnumOptions<ESpeaker>();
 	EmotionOptions = GetEnumOptions<EEmotion>();
@@ -291,18 +289,19 @@ void SConversationEditorTab::RefreshLines()
 
 TSharedRef<SListView<TSharedPtr<FLineDisplayData>>> SConversationEditorTab::ConstructLineList()
 {
-	if(!SelectedConversation)
-		return SNew(SListView<TSharedPtr<FLineDisplayData>>);
-	
 	CurrentLineList.Empty();
-	int16 index = 0;
-	for (FLine& line : SelectedConversation->Lines)
-	{
-		auto linePtr = TSharedPtr<FLine>(&line, [](FLine*) {});
-		CurrentLineList.Add(MakeShared<FLineDisplayData>(FLineDisplayData{index, linePtr}));
-		index++;
-	}
 	
+	if(SelectedConversation)
+	{
+		int16 index = 0;
+		for (FLine& line : SelectedConversation->Lines)
+		{
+			auto linePtr = TSharedPtr<FLine>(&line, [](FLine*) {});
+			CurrentLineList.Add(MakeShared<FLineDisplayData>(FLineDisplayData{index, linePtr}));
+			index++;
+		}
+	}
+
 	LineListView = SNew(SListView<TSharedPtr<FLineDisplayData>>)
 	.ItemHeight(24.f)
 	.ListItemsSource(&CurrentLineList)

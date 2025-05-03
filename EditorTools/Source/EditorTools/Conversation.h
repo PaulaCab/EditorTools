@@ -10,15 +10,17 @@
 UENUM()
 enum class ESpeaker : int8
 {
-	Speaker1,
-	Speaker2
+	Alice,
+	Nico
 };
 
 UENUM()
 enum class EEmotion : int8
 {
+	Calm,
 	Happy,
 	Angry,
+	Blush,
 	Sad
 };
 
@@ -36,7 +38,7 @@ struct FLine
 {
 	GENERATED_BODY()
 	
-	UPROPERTY() ESpeaker Speaker = ESpeaker::Speaker1;
+	UPROPERTY() ESpeaker Speaker = ESpeaker::Alice;
 	UPROPERTY() EEmotion Emotion = EEmotion::Happy;
 	UPROPERTY() FText Text;
 	UPROPERTY() bool bHasAnswer = false;
