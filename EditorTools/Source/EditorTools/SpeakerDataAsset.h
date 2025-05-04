@@ -13,6 +13,8 @@ class EDITORTOOLS_API UEmotionDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 
+public:
+	UPROPERTY(EditAnywhere) FText CharacterName;
 	UPROPERTY(EditAnywhere) TMap<EEmotion, UTexture2D*> EmotionMap = {
 		{EEmotion::Calm, nullptr},
 		{EEmotion::Happy, nullptr},
@@ -28,6 +30,7 @@ class EDITORTOOLS_API USpeakerDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere) TMap<ESpeaker, UEmotionDataAsset*> SpeakerMap = {
 		{ESpeaker::Alice, nullptr},
 		{ESpeaker::Nico, nullptr}
