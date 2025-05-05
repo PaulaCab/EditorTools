@@ -33,6 +33,9 @@ class EDITORTOOLS_API UConversationWidget : public UUserWidget
 	int StringLenght = 0;
 	FTimerHandle Text_TH;
 	
+	UPROPERTY(EditDefaultsOnly) int SkipAmount = 5;
+	int SkipCount = 0;
+	
 	int AnswerIndex = 0;
 	
 	void ChangeLine(int Index);

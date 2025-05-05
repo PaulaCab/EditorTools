@@ -99,14 +99,28 @@ void UConversationWidget::UpdateAnswers()
 
 void UConversationWidget::UpdateText()
 {
+	if(SkipCount>0)
+	{
+		SkipCount--;
+		return;
+	}
+	
 	StringLenght++;
 	MainTextBlock->SetText(FText::FromString(CurrentText.Mid(0, StringLenght)));
+
 	if(CurrentText.Len() == StringLenght)
 	{
 		if(const auto* world = GetWorld())
 			world->GetTimerManager().ClearTimer(Text_TH);
 		
 		StringLenght = 0;
+		return;
+	}
+
+	char c = CurrentText.GetCharArray()[StringLenght-1];
+	if( c == '!' || c == '.' || c == ',' || c == '?')
+	{
+		SkipCount = SkipAmount;		
 	}
 }
 

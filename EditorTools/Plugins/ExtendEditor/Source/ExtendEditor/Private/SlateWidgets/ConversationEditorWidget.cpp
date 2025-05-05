@@ -642,9 +642,13 @@ TSharedRef<SHorizontalBox> SConversationEditorTab::ConstructButtonsHBox(TSharedP
 	+ SHorizontalBox::Slot()
 	.AutoWidth()
 	[
-			ConstructIconButton(FCoreStyle::Get().GetBrush("Icons.ChevronUp"),
-			FOnClicked::CreateLambda([InLine]() {
-			// TODO: Mover hacia arriba
+		ConstructIconButton(FCoreStyle::Get().GetBrush("Icons.ChevronUp"),
+		FOnClicked::CreateLambda([this, InLine]() {
+			if(SelectedConversation)
+			{
+				SelectedConversation->SwitchLine(*InLine, -1);
+				RefreshLines();
+			}
 			return FReply::Handled();
 		}))
 	]
@@ -653,8 +657,12 @@ TSharedRef<SHorizontalBox> SConversationEditorTab::ConstructButtonsHBox(TSharedP
 	.AutoWidth()
 	[
 		ConstructIconButton(FCoreStyle::Get().GetBrush("Icons.ChevronDown"),
-		FOnClicked::CreateLambda([InLine]() {
-			// TODO: Mover hacia abajo
+		FOnClicked::CreateLambda([this, InLine]() {
+			if(SelectedConversation)
+			{
+				SelectedConversation->SwitchLine(*InLine, 1);
+				RefreshLines();
+			}
 			return FReply::Handled();
 		}))
 	]

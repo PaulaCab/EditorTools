@@ -59,13 +59,17 @@ UCLASS()
 class EDITORTOOLS_API UConversation : public UDataAsset
 {
 	GENERATED_BODY()
-
+	
 public:
 	UPROPERTY() TArray<FLine> Lines = {FLine()};
 
 	void DeleteLine(FLine& Line);
 	void NewLine(FLine& Line);
+	void SwitchLine(FLine& Line, int Step);
 
 	void NewAnswer(FLine& Line);
 	void DeleteAnswer(FLine& Line);
+
+private:
+	void UpdateNextLineIndex(int Start, int Step);
 };
